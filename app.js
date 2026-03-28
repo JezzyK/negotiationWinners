@@ -226,12 +226,12 @@ const toolDeclarations = [
         name: 'update_zopa',
         description: 'Update the ZOPA (Zone of Possible Agreement) display with negotiation anchors and range. Call this when price points, anchors, or terms are mentioned.',
         parameters: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-                framework_label: { type: 'STRING', description: 'Strategy framework title, e.g. BATNA, ZOPA' },
-                client_anchor:   { type: 'STRING', description: "Client's stated price or term anchor" },
-                your_target:     { type: 'STRING', description: 'Recommended target price/term for the user' },
-                zopa_range:      { type: 'STRING', description: 'Zone of Possible Agreement range, e.g. "$45K - $60K"' }
+                framework_label: { type: 'string', description: 'Strategy framework title, e.g. BATNA, ZOPA' },
+                client_anchor:   { type: 'string', description: "Client's stated price or term anchor" },
+                your_target:     { type: 'string', description: 'Recommended target price/term for the user' },
+                zopa_range:      { type: 'string', description: 'Zone of Possible Agreement range, e.g. "$45K - $60K"' }
             }
         }
     },
@@ -239,11 +239,11 @@ const toolDeclarations = [
         name: 'update_analytics',
         description: 'Update the live analytics dashboard: current negotiation phase, talk-time ratio. Call this frequently as the conversation progresses.',
         parameters: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-                phase:              { type: 'STRING', description: 'Current negotiation phase: Small-talk, Discovery, Negotiation, Objections, Agreement, Closing' },
-                talk_ratio_client:  { type: 'INTEGER', description: 'Estimated percentage of time client has been speaking (0-100)' },
-                talk_ratio_you:     { type: 'INTEGER', description: 'Estimated percentage of time user has been speaking (0-100)' }
+                phase:              { type: 'string', description: 'Current negotiation phase: Small-talk, Discovery, Negotiation, Objections, Agreement, Closing' },
+                talk_ratio_client:  { type: 'integer', description: 'Estimated percentage of time client has been speaking (0-100)' },
+                talk_ratio_you:     { type: 'integer', description: 'Estimated percentage of time user has been speaking (0-100)' }
             }
         }
     },
@@ -251,10 +251,10 @@ const toolDeclarations = [
         name: 'suggest_directive',
         description: 'Show a tactical directive/hint telling the user what to say or do next. Use this for real-time coaching.',
         parameters: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-                text:    { type: 'STRING', description: 'Concise, actionable tactical hint for the user' },
-                urgency: { type: 'STRING', description: 'Urgency level', enum: ['low', 'medium', 'high'] }
+                text:    { type: 'string', description: 'Concise, actionable tactical hint for the user' },
+                urgency: { type: 'string', description: 'Urgency level', enum: ['low', 'medium', 'high'] }
             },
             required: ['text']
         }
@@ -263,11 +263,11 @@ const toolDeclarations = [
         name: 'show_battlecard',
         description: 'Slide out a context panel with pros, cons, and intel about a competitor, product, or objection topic. Triggered when specific topics need deeper context.',
         parameters: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-                title: { type: 'STRING', description: 'Title of the topic/competitor/objection' },
-                pros:  { type: 'ARRAY', items: { type: 'STRING' }, description: 'List of strengths/advantages' },
-                cons:  { type: 'ARRAY', items: { type: 'STRING' }, description: 'List of weaknesses/risks' }
+                title: { type: 'string', description: 'Title of the topic/competitor/objection' },
+                pros:  { type: 'array', items: { type: 'string' }, description: 'List of strengths/advantages' },
+                cons:  { type: 'array', items: { type: 'string' }, description: 'List of weaknesses/risks' }
             },
             required: ['title', 'pros', 'cons']
         }
@@ -276,9 +276,9 @@ const toolDeclarations = [
         name: 'add_trigger',
         description: 'Log a key event to the negotiation timeline. Call when a significant moment occurs: anchor dropped, competitor mentioned, commitment made, phase shift, etc.',
         parameters: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-                label: { type: 'STRING', description: 'Highly concise event label, e.g. "Competitor AcmeCorp mentioned"' }
+                label: { type: 'string', description: 'Highly concise event label, e.g. "Competitor AcmeCorp mentioned"' }
             },
             required: ['label']
         }
@@ -293,14 +293,13 @@ You are listening to a live audio stream of a negotiation between the user ("You
 Your ONLY job is to analyze the conversation and call the provided tools to update the user's dashboard.
 
 Rules:
-1. NEVER respond with plain text. ONLY call tools.
-2. Call update_analytics frequently to keep the phase and talk ratios current.
-3. Call suggest_directive whenever you have actionable tactical advice.
-4. Call update_zopa when price anchors, terms, or BATNA-related info is mentioned.
-5. Call add_trigger to log key negotiation events to the timeline.
-6. Call show_battlecard when a competitor, specific product, or major objection needs deeper context.
-7. Be responsive — update within seconds of hearing relevant information.
-8. Keep all text concise and direct. This is a real-time HUD, not a report.
+- ANY time a new phase of negotiation begins, YOU MUST call update_analytics to set the current phase.
+- IF you detect actionable tactical advice to give the user, YOU MUST call suggest_directive immediately.
+- ANY time price anchors, terms, or BATNA-related info is mentioned by either party, YOU MUST call update_zopa.
+- ANY time a significant moment occurs (competitor mentioned, commitment made, phase shift, objections), YOU MUST call add_trigger to log the event.
+- IF a competitor, specific product, or major objection needs deeper context, YOU MUST call show_battlecard.
+- Keep all tool parameters concise and direct. This is a real-time HUD, not a report.
+- DO NOT respond with text or voice greetings, ONLY USE TOOLS. 
 `.trim();
 
 
@@ -605,7 +604,7 @@ async function startSession() {
                     systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
                     tools: [{ functionDeclarations: toolDeclarations }],
                     generationConfig: {
-                        responseModalities: ['TEXT']
+                        responseModalities: ['AUDIO']
                     }
                 }
             };

@@ -108,3 +108,4 @@ Running 4 tests using 4 workers
   1 passed (22.7s)
 
 [36m  Serving HTML report at http://localhost:52017. Press Ctrl+C to quit.[39m
+Terminate batch job (Y/N)? 

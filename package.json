@@ -1,24 +1,19 @@
 {
-  "name": "negitiationwinners",
+  "name": "negotiateai-gemliveapitest",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/JezzyK/negotiationWinners.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/JezzyK/negotiationWinners/issues"
-  },
-  "homepage": "https://github.com/JezzyK/negotiationWinners#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2"
+  },
+  "dependencies": {
+    "ws": "^8.20.0"
   }
 }

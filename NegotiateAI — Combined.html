@@ -412,15 +412,8 @@ body {
         <option value="ru">RU</option>
       </select>
     </div>
-    <input type="password" id="api-key-input" placeholder="Google Gemini API Key" style="font-size:11px; padding:4px 8px; border-radius:4px; background:var(--surface); color:var(--text); border:1px solid var(--border); outline:none; width:150px; margin-right:4px;" />
-    <select id="audio-src" style="font-size:11px; padding:4px 8px; border-radius:4px; background:var(--surface); color:var(--text); border:1px solid var(--border); outline:none; appearance:none;">
-      <option value="system">🖥 System Audio</option>
-      <option value="mic">🎤 Microphone</option>
-    </select>
-    <button id="btn-session" style="font-size:11px; padding:6px 14px; border-radius:5px; border:none; background:var(--blue); color:white; font-weight:600; cursor:pointer; transition:0.2s;">🎙 Start Session</button>
-    <button id="btn-dev" style="font-size:11px; padding:6px 10px; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; margin-left:8px;" onclick="window.toggleDevConsole()">▤ Dev Console</button>
-    <div class="live" id="status-ind" style="color:var(--muted); gap: 6px;"><div class="live-dot" id="status-dot" style="background:var(--muted); animation:none;"></div><span id="status-text">Idle</span></div>
-    <div class="timer" id="timer">00:00</div>
+    <div class="live"><div class="live-dot"></div>Live</div>
+    <div class="timer" id="timer">21:30</div>
     <div class="badge">MEDDICC</div>
   </div>
 </div>
@@ -494,8 +487,7 @@ body {
     </div>
 
     <!-- Лог триггеров -->
-    <div class="trigger-log" id="trigger-log">
-      <!-- Triggers injected here -->
+    <div class="trigger-log">
       <div class="trig fresh" data-i18n="trig1">⚡ Competitor: SAP · 14:14</div>
       <div class="trig" data-i18n="trig2">📋 Budget: gap · 10:02</div>
       <div class="trig" data-i18n="trig3">⏸ Pause 7s · 08:45</div>
@@ -505,16 +497,429 @@ body {
   </div>
 </div>
 
-<!-- DEV CONSOLE -->
-<div id="dev-console" style="display:none; position:fixed; right:0; top:64px; bottom:0; width:450px; background:var(--surface); border-left:1px solid var(--border); z-index:9999; flex-direction:column; font-family:monospace; font-size:11px;">
-   <div style="padding:10px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-      <strong style="color:var(--text); font-size:12px;">Dev Console (Live API Traffic)</strong>
-      <button onclick="window.toggleDevConsole()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">✕</button>
-   </div>
-   <div id="dev-logs" style="flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;"></div>
-</div>
+<script>
+// ── i18n Dictionary ──
+const translations = {
+  en: {
+    role: "Head of Procurement · Comarch S.A.",
+    zopaTitle: "Negotiation Space (ZOPA)",
+    ourZone: "Our Zone",
+    clientZone: "Client Zone",
+    gazeZone: "gaze zone · camera",
+    phaseCoop: "Phase: Cooperation",
+    phaseOpp: "Phase: Confrontation",
+    whatToSay: "→ what to say",
+    factsData: "← facts · data",
+    compMentioned: "⚡ Competitor mentioned",
+    bcItem1: "SAP impl: 6–18 mos. — launch in 2 weeks",
+    bcItem2: "40% lower TCO with similar features",
+    bcItem3: "Native Zoom/Teams integration, no install",
+    close: "Close",
+    trig1: "⚡ Competitor: SAP · 14:14",
+    trig2: "📋 Budget: gap · 10:02",
+    trig3: "⏸ Pause 7s · 08:45",
+    trig4: "📊 Contradiction · 06:30",
+    clientPrefix: "Client",
+    youPrefix: "You",
+    ourMinStr: "Our min: €",
+    theirMaxStr: "Their max: €",
+    agenda: ['Rapport & Agenda', 'Discovery (Pain)', 'Pitch / Demo', 'Trading (ZOPA)', 'Next Steps'],
+    hints: [
+      'Budget not discussed — ask about the range',
+      'Champion undefined — who will defend the deal internally?',
+      'Client named a deadline — clarify approval process',
+      'Competitor SAP mentioned — use the speed argument',
+      '3 mins without clarifying question — change vector'
+    ]
+  },
+  pl: {
+    role: "Dyrektor ds. Zakupów · Comarch S.A.",
+    zopaTitle: "Przestrzeń negocjacji (ZOPA)",
+    ourZone: "Nasza strefa",
+    clientZone: "Strefa klienta",
+    gazeZone: "strefa wzroku · kamera",
+    phaseCoop: "Faza: Kooperacja",
+    phaseOpp: "Faza: Konfrontacja",
+    whatToSay: "→ co powiedzieć",
+    factsData: "← fakty · dane",
+    compMentioned: "⚡ Wspomniano konkurencję",
+    bcItem1: "Wdrożenie SAP: 6–18 mies. — start w 2 tyg.",
+    bcItem2: "TCO o 40% niższe przy podobnych funkcjach",
+    bcItem3: "Natywna integracja Zoom/Teams, brak instalacji",
+    close: "Zamknij",
+    trig1: "⚡ Konkurencja: SAP · 14:14",
+    trig2: "📋 Budżet: luka · 10:02",
+    trig3: "⏸ Pauza 7s · 08:45",
+    trig4: "📊 Sprzeczność · 06:30",
+    clientPrefix: "Klient",
+    youPrefix: "Ty",
+    ourMinStr: "Nasz min: €",
+    theirMaxStr: "Ich max: €",
+    agenda: ['Rapport & Agenda', 'Odkrywanie (Bóle)', 'Pitch / Demo', 'Negocjacje (ZOPA)', 'Kolejne kroki'],
+    hints: [
+      'Budżet nie omówiony — zapytaj o widełki',
+      'Champion nieokreślony — kto obroni deal wewnątrz?',
+      'Klient podał termin — doprecyzuj proces akceptacji',
+      'Wspomniano SAP — użyj argumentu szybkości',
+      '3 minuty bez pytania doprecyzowującego — zmień wektor'
+    ]
+  },
+  ua: {
+    role: "Директор із закупівель · Comarch S.A.",
+    zopaTitle: "Простір торгів (ZOPA)",
+    ourZone: "Наша зона",
+    clientZone: "Зона клієнта",
+    gazeZone: "зона погляду · камера",
+    phaseCoop: "Фаза: Кооперація",
+    phaseOpp: "Фаза: Протистояння",
+    whatToSay: "→ що сказати",
+    factsData: "← факти · дані",
+    compMentioned: "⚡ Згадано конкурента",
+    bcItem1: "Впровадження SAP: 6–18 міс. — старт за 2 тижні",
+    bcItem2: "TCO на 40% нижче при аналогічних функціях",
+    bcItem3: "Нативна інтеграція з Zoom/Teams, без установки",
+    close: "Закрити",
+    trig1: "⚡ Конкурент: SAP · 14:14",
+    trig2: "📋 Бюджет: розрив · 10:02",
+    trig3: "⏸ Пауза 7с · 08:45",
+    trig4: "📊 Суперечність · 06:30",
+    clientPrefix: "Клієнт",
+    youPrefix: "Ви",
+    ourMinStr: "Наш мін: €",
+    theirMaxStr: "Їхній макс: €",
+    agenda: ['Рапорт & Agenda', 'Діскавері (Болі)', 'Пітч / Демо', 'Торги (ZOPA)', 'Next Steps'],
+    hints: [
+      'Бюджет не обговорювався — запитай про діапазон',
+      'Champion не визначений — хто всередині захистить угоду?',
+      'Клієнт назвав дедлайн — уточни процес узгодження',
+      'Згадано конкурента SAP — використай аргумент швидкості',
+      '3 хвилини без уточнюючого питання — зміни вектор'
+    ]
+  },
+  ru: {
+    role: "Директор по закупкам · Comarch S.A.",
+    zopaTitle: "Пространство торга (ZOPA)",
+    ourZone: "Наша зона",
+    clientZone: "Зона клиента",
+    gazeZone: "зона взгляда · камера",
+    phaseCoop: "Фаза: Кооперация",
+    phaseOpp: "Фаза: Противостояние",
+    whatToSay: "→ что сказать",
+    factsData: "← факты · данные",
+    compMentioned: "⚡ Конкурент упомянут",
+    bcItem1: "Внедрение SAP: 6–18 мес. — старт за 2 недели",
+    bcItem2: "TCO на 40% ниже при аналогичных функциях",
+    bcItem3: "Нативная интеграция с Zoom/Teams, без установки",
+    close: "Закрыть",
+    trig1: "⚡ Конкурент: SAP · 14:14",
+    trig2: "📋 Бюджет: разрыв · 10:02",
+    trig3: "⏸ Пауза 7с · 08:45",
+    trig4: "📊 Противоречие · 06:30",
+    clientPrefix: "Клиент",
+    youPrefix: "Вы",
+    ourMinStr: "Наш мин: €",
+    theirMaxStr: "Их макс: €",
+    agenda: ['Раппорт & Agenda', 'Дискавери (Боли)', 'Питч / Демо', 'Торги (ZOPA)', 'Next Steps'],
+    hints: [
+      'Бюджет не обсуждался — задай вопрос о диапазоне',
+      'Champion не определён — кто внутри защитит сделку?',
+      'Клиент назвал дедлайн — уточни процесс согласования',
+      'Упомянут конкурент SAP — используй аргумент скорости',
+      '3 минуты без уточняющего вопроса — смени вектор'
+    ]
+  }
+};
 
-<script src="app.js"></script>
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.getElementById('html-root').lang = lang;
+  
+  // Sync the select dropdown value if called programmatically
+  const selectEl = document.getElementById('lang-select');
+  if (selectEl && selectEl.value !== lang) {
+    selectEl.value = lang;
+  }
+
+  // Update static texts
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang][key]) {
+      el.textContent = translations[lang][key];
+    }
+  });
+
+  // Force updates on dynamic elements
+  updateHybridAgenda(true); 
+  document.getElementById('hint-text').textContent = translations[currentLang].hints[hi];
+  updatePhaseText();
+  
+  // Re-trigger Ratio & ZOPA labels based on the new lang
+  updateRatioLabels();
+  forceZopaLabelsUpdate();
+}
+
+// ── TIMER & AGENDA ──
+let secs = 14*60+23;
+
+const agendaLimits = [3 * 60, 12 * 60, 25 * 60, 35 * 60, 40 * 60];
+
+const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+function updateHybridAgenda(forceRebuild = false) {
+  const container = document.getElementById('agenda-steps');
+  
+  if (container.children.length === 0 || forceRebuild) {
+    container.innerHTML = '';
+    agendaLimits.forEach((_, i) => {
+      const el = document.createElement('div');
+      el.id = `step-${i}`;
+      container.appendChild(el);
+    });
+  }
+
+  const t = translations[currentLang];
+  let currentFound = false;
+  
+  agendaLimits.forEach((limit, i) => {
+    const stepName = t.agenda[i];
+    const el = document.getElementById(`step-${i}`);
+    const prevLimit = i === 0 ? 0 : agendaLimits[i - 1];
+    const stepDuration = limit - prevLimit;
+
+    if (secs >= limit) {
+      if (!currentFound && i === agendaLimits.length - 1) {
+        currentFound = true;
+        const elapsed = secs - prevLimit;
+        el.className = 'g-step active danger';
+        if (!el.querySelector('.g-fill')) {
+          el.innerHTML = `
+            <div class="g-active-top">
+              <div class="g-active-title"><div class="g-dot"></div>${stepName}</div>
+              <div class="g-time" id="time-${i}"></div>
+            </div>
+            <div class="g-bar"><div class="g-fill" id="fill-${i}" style="width: 100%;"></div></div>
+          `;
+        } else if (forceRebuild) {
+           el.querySelector('.g-active-title').innerHTML = `<div class="g-dot"></div>${stepName}`;
+        }
+        document.getElementById(`time-${i}`).textContent = `+${formatTime(elapsed - stepDuration)}`;
+      } else {
+        el.className = 'g-step done';
+        el.innerHTML = '';
+      }
+    } else if (!currentFound) {
+      currentFound = true;
+      const elapsed = secs - prevLimit;
+      const pct = Math.min((elapsed / stepDuration) * 100, 100);
+
+      let stateClass = '';
+      if (pct >= 90) stateClass = 'danger';
+      else if (pct >= 75) stateClass = 'warn';
+
+      el.className = `g-step active ${stateClass}`;
+      
+      if (!el.querySelector('.g-fill')) {
+         el.innerHTML = `
+          <div class="g-active-top">
+            <div class="g-active-title"><div class="g-dot"></div>${stepName}</div>
+            <div class="g-time" id="time-${i}"></div>
+          </div>
+          <div class="g-bar"><div class="g-fill" id="fill-${i}"></div></div>
+        `;
+      } else if (forceRebuild) {
+         el.querySelector('.g-active-title').innerHTML = `<div class="g-dot"></div>${stepName}`;
+      }
+      document.getElementById(`time-${i}`).textContent = `${formatTime(elapsed)} / ${formatTime(stepDuration)}`;
+      document.getElementById(`fill-${i}`).style.width = `${pct}%`;
+
+    } else {
+      el.className = 'g-step upcoming';
+      el.innerHTML = stepName;
+    }
+  });
+}
+
+setInterval(() => {
+  secs++;
+  document.getElementById('timer').textContent = formatTime(secs);
+  updateHybridAgenda();
+}, 1000);
+updateHybridAgenda();
+
+let isCoopPhase = true;
+
+function updatePhaseText() {
+  const txt = document.getElementById('mode-text');
+  txt.textContent = isCoopPhase ? translations[currentLang].phaseCoop : translations[currentLang].phaseOpp;
+}
+
+// ── NEGOTIATION MODE & ZOPA DYNAMICS ──
+setInterval(() => {
+  const el = document.getElementById('mode-glow');
+  const txt = document.getElementById('mode-text');
+  
+  if (isCoopPhase) {
+    isCoopPhase = false;
+    el.className = 'mode-glow opp';
+    txt.className = 'mode-text opp';
+  } else {
+    isCoopPhase = true;
+    el.className = 'mode-glow coop';
+    txt.className = 'mode-text coop';
+  }
+  updatePhaseText();
+}, 12000);
+
+const BASE_MIN = 50; 
+const BASE_MAX = 150; 
+const usMinVal = 85;
+const usMinPct = ((usMinVal - BASE_MIN) / (BASE_MAX - BASE_MIN)) * 100;
+
+let lastThemMaxVal = 100; 
+
+function forceZopaLabelsUpdate() {
+  const t = translations[currentLang];
+  document.getElementById('l-us-min').textContent = `${t.ourMinStr}${usMinVal}k`;
+  document.getElementById('l-them-max').textContent = `${t.theirMaxStr}${lastThemMaxVal}k`;
+}
+
+setInterval(() => {
+  if (isCoopPhase) {
+    lastThemMaxVal = Math.floor(95 + Math.random() * 20);
+  } else {
+    lastThemMaxVal = Math.floor(65 + Math.random() * 15);
+  }
+
+  const themMaxPct = ((lastThemMaxVal - BASE_MIN) / (BASE_MAX - BASE_MIN)) * 100;
+
+  document.getElementById('z-us').style.left = usMinPct + '%';
+  document.getElementById('z-them').style.right = (100 - themMaxPct) + '%';
+  document.getElementById('l-us-min').style.left = usMinPct + '%';
+  document.getElementById('l-them-max').style.left = themMaxPct + '%';
+  
+  forceZopaLabelsUpdate();
+
+  const zopa = document.getElementById('z-zopa');
+  if (usMinPct < themMaxPct) {
+    zopa.style.left = usMinPct + '%';
+    zopa.style.right = (100 - themMaxPct) + '%';
+    zopa.classList.add('active');
+    zopa.textContent = `ZOPA (€${lastThemMaxVal - usMinVal}k)`;
+  } else {
+    zopa.classList.remove('active');
+    zopa.textContent = '';
+  }
+}, 3000);
+
+// ── WAVEFORM & TALK-TO-LISTEN RATIO ──
+let ratioUs = 0.45;
+let speaking = false; 
+
+function updateRatioLabels() {
+    const t = translations[currentLang];
+    document.getElementById('sr-them').textContent = `${t.clientPrefix}: ${Math.round((1 - ratioUs) * 100)}%`;
+    document.getElementById('sr-us').textContent = `${t.youPrefix}: ${Math.round(ratioUs * 100)}%`;
+}
+
+(function() {
+  const cv = document.getElementById('wv');
+  const ctx = cv.getContext('2d');
+  const N = 40; 
+  let h   = Array.from({length:N}, () => Math.random()*0.2+0.05);
+  let tgt = Array.from({length:N}, () => Math.random()*0.2+0.05);
+  let f = 0;
+
+  setInterval(() => {
+    speaking = !speaking;
+    document.getElementById('sr-them').className = !speaking ? 'sr-them sr-active' : 'sr-them sr-inactive';
+    document.getElementById('sr-us').className = speaking ? 'sr-us sr-active' : 'sr-us sr-inactive';
+  }, 7000);
+
+  function draw() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const bw = cv.width/N, cy = cv.height/2;
+
+    if (f % 60 === 0) {
+        ratioUs += (speaking ? 0.003 : -0.003);
+        ratioUs = Math.max(0.2, Math.min(ratioUs, 0.8));
+        updateRatioLabels();
+    }
+
+    h = h.map((v,i) => v + (tgt[i]-v)*0.13);
+
+    if (f%6===0) {
+      tgt = tgt.map((_,i) => {
+        const isUsBar = (i / N) >= (1 - ratioUs);
+        const isActiveSide = isUsBar ? speaking : !speaking;
+        if (isActiveSide) { 
+            const w = Math.sin(f*0.04+i*0.5)*0.25+0.3; 
+            return Math.random()*w+0.08; 
+        }
+        return Math.random()*0.1+0.02; 
+      });
+    }
+
+    h.forEach((bh,i) => {
+      const x=i*bw+bw*0.18, w=bw*0.64, barH=bh*cv.height*0.88;
+      const isUsBar = (i / N) >= (1 - ratioUs);
+      const isActiveSide = isUsBar ? speaking : !speaking;
+
+      const a = isActiveSide ? Math.min(0.45+bh*0.95, 1) : 0.25;
+      ctx.fillStyle = isUsBar ? `rgba(59,130,246,${a})` : `rgba(168,85,247,${a})`;
+
+      const r=w/2, y=cy-barH/2;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+      ctx.lineTo(x+w,y+barH-r); ctx.arcTo(x+w,y+barH,x+w-r,y+barH,r);
+      ctx.lineTo(x+r,y+barH); ctx.arcTo(x,y+barH,x,y+barH-r,r);
+      ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); ctx.fill();
+    });
+    f++; requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── HINTS ──
+let hi = 0;
+setInterval(() => {
+  const el = document.getElementById('hint');
+  const textNode = document.getElementById('hint-text');
+  el.classList.add('fadeout');
+  setTimeout(() => {
+    hi = (hi+1) % translations[currentLang].hints.length;
+    textNode.textContent = translations[currentLang].hints[hi];
+    el.classList.remove('fadeout');
+  }, 360);
+}, 5500);
+
+// ── BATTLECARD ──
+let bcSecs = 10, bcInt = null;
+function showCard() {
+  bcSecs = 10;
+  document.getElementById('bc').classList.add('show');
+  document.getElementById('bc-t').textContent = `${bcSecs}s`;
+  document.getElementById('bc-fill').style.width = '100%';
+  if (bcInt) clearInterval(bcInt);
+  bcInt = setInterval(() => {
+    bcSecs--;
+    document.getElementById('bc-t').textContent = `${bcSecs}s`;
+    document.getElementById('bc-fill').style.width = `${bcSecs*10}%`;
+    if (bcSecs <= 0) hideCard();
+  }, 1000);
+}
+function hideCard() {
+  document.getElementById('bc').classList.remove('show');
+  if (bcInt) clearInterval(bcInt);
+  setTimeout(showCard, 9000);
+}
+setTimeout(showCard, 2500);
+
+// Init EN on start
+setLanguage('en');
+
+</script>
 
 
 <deepl-input-controller translate="no"><template shadowrootmode="open"><link rel="stylesheet" href="chrome-extension://cofdbpoegempjloogbagkncekinflcnj/build/content.css"><div dir="ltr" style="visibility: initial !important;"><div class="dl-input-translation-container svelte-95aucy"><div></div></div></div></template></deepl-input-controller><iframe id="nr-ext-rsicon" style="position: absolute; display: none; width: 50px; height: 50px; z-index: 2147483647; border-style: none; background: transparent;" src="./NegotiateAI — Combined_files/saved_resource.html"></iframe></body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>

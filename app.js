@@ -1,906 +1,803 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════
- *  NEGOTIATE-COPILOT — app.js
- *  Real-time negotiation coaching powered by Gemini Live API
- * ═══════════════════════════════════════════════════════════════════════
- */
+// ── i18n Dictionary ──
 
-// ─── Configuration ─────────────────────────────────────────────────────
-const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-const MODEL_ID = 'models/gemini-3.1-flash-live-preview';
-const TARGET_SAMPLE_RATE = 16000;
-const AUDIO_CHUNK_SIZE = 4096;
-const SPEAKING_RMS_THRESHOLD = 0.015;
-const CONNECTION_TIMEOUT_MS = 15000;
-
-// ─── State ─────────────────────────────────────────────────────────────
-let ws = null;
-let isSessionActive = false;
-let isSpeaking = false;
-let audioContext = null;
-let mediaStream = null;
-let processorNode = null;
-let analyserNode = null;
-let timerInterval = null;
-let sessionSeconds = 0;
-let sessionLog = [];
-let sessionStartTime = null;
-
-
-// ─── TRANSLATIONS ──────────────────────────────────────────────────────
+// ── i18n Dictionary ──
 const translations = {
-    en: {
-        roles: { client: "CLIENT", you: "YOU" },
-        ui: {
-            startSession: "START SESSION",
-            stopSession: "STOP SESSION",
-            offline: "Offline",
-            live: "LIVE",
-            listening: "LISTENING...",
-            awaitingAudio: "AWAITING AUDIO",
-            connecting: "CONNECTING...",
-            batna: "BATNA",
-            hintBox: "💡 What to Say",
-            keyEvents: "📌 Key Events",
-            contextInsights: "⚡ Context Insights",
-            devConsole: "🖥️ Developer Console",
-            awaitingContext: "Awaiting context triggers...",
-            waitingHint: "Waiting for negotiation context…"
-        },
-        agenda: {
-            smallTalk: "Small-Talk",
-            discovery: "Discovery",
-            negotiation: "Negotiation",
-            objections: "Objections",
-            agreement: "Agreement"
-        },
-        battlecard: {
-            clientAnchor: "Client Anchor",
-            yourTarget: "Your Target",
-            zopa: "ZOPA"
-        }
-    },
-    pl: {
-        roles: { client: "KLIENT", you: "TY" },
-        ui: {
-            startSession: "ROZPOCZNIJ SESJĘ",
-            stopSession: "ZAKOŃCZ SESJĘ",
-            offline: "Offline",
-            live: "NA ŻYWO",
-            listening: "NASŁUCHIWANIE...",
-            awaitingAudio: "OCZEKIWANIE NA DŹWIĘK",
-            connecting: "ŁĄCZENIE...",
-            batna: "BATNA",
-            hintBox: "💡 Co Powiedzieć",
-            keyEvents: "📌 Kluczowe Wydarzenia",
-            contextInsights: "⚡ Kontekst i Wskazówki",
-            devConsole: "🖥️ Konsola Programisty",
-            awaitingContext: "Oczekiwanie na kontekst...",
-            waitingHint: "Oczekiwanie na kontekst negocjacji…"
-        },
-        agenda: {
-            smallTalk: "Small-Talk",
-            discovery: "Odkrywanie",
-            negotiation: "Negocjacje",
-            objections: "Obiekcje",
-            agreement: "Porozumienie"
-        },
-        battlecard: {
-            clientAnchor: "Kotwica Klienta",
-            yourTarget: "Twój Cel",
-            zopa: "ZOPA"
-        }
-    },
-    ua: {
-        roles: { client: "КЛІЄНТ", you: "ВИ" },
-        ui: {
-            startSession: "ПОЧАТИ СЕСІЮ",
-            stopSession: "ЗУПИНИТИ СЕСІЮ",
-            offline: "Офлайн",
-            live: "НАЖИВО",
-            listening: "СЛУХАЮ...",
-            awaitingAudio: "ОЧІКУВАННЯ ЗВУКУ",
-            connecting: "ПІДКЛЮЧЕННЯ...",
-            batna: "BATNA",
-            hintBox: "💡 Що сказати",
-            keyEvents: "📌 Ключові події",
-            contextInsights: "⚡ Інсайти контексту",
-            devConsole: "🖥️ Консоль розробника",
-            awaitingContext: "Очікування контексту...",
-            waitingHint: "Очікування на контекст переговорів…"
-        },
-        agenda: {
-            smallTalk: "Коротка розмова",
-            discovery: "З'ясування",
-            negotiation: "Переговори",
-            objections: "Заперечення",
-            agreement: "Угода"
-        },
-        battlecard: {
-            clientAnchor: "Якір клієнта",
-            yourTarget: "Ваша ціль",
-            zopa: "ZOPA"
-        }
-    }
+  en: {
+    role: "Head of Procurement · Comarch S.A.",
+    zopaTitle: "Negotiation Space (ZOPA)",
+    ourZone: "Our Zone",
+    clientZone: "Client Zone",
+    gazeZone: "gaze zone · camera",
+    phaseCoop: "Phase: Cooperation",
+    phaseOpp: "Phase: Confrontation",
+    whatToSay: "→ what to say",
+    factsData: "← facts · data",
+    compMentioned: "⚡ Competitor mentioned",
+    bcItem1: "SAP impl: 6–18 mos. — launch in 2 weeks",
+    bcItem2: "40% lower TCO with similar features",
+    bcItem3: "Native Zoom/Teams integration, no install",
+    close: "Close",
+    clientPrefix: "Client",
+    youPrefix: "You",
+    ourMinStr: "Our min: €",
+    theirMaxStr: "Their max: €",
+    agenda: ['Rapport & Agenda', 'Discovery (Pain)', 'Pitch / Demo', 'Trading (ZOPA)', 'Next Steps'],
+  },
+  pl: {
+    role: "Dyrektor ds. Zakupów · Comarch S.A.",
+    zopaTitle: "Przestrzeń negocjacji (ZOPA)",
+    ourZone: "Nasza strefa",
+    clientZone: "Strefa klienta",
+    gazeZone: "strefa wzroku · kamera",
+    phaseCoop: "Faza: Kooperacja",
+    phaseOpp: "Faza: Konfrontacja",
+    whatToSay: "→ co powiedzieć",
+    factsData: "← fakty · dane",
+    compMentioned: "⚡ Wspomniano konkurencję",
+    bcItem1: "Wdrożenie SAP: 6–18 mies. — start w 2 tyg.",
+    bcItem2: "TCO o 40% niższe przy podobnych funkcjach",
+    bcItem3: "Natywna integracja Zoom/Teams, brak instalacji",
+    close: "Zamknij",
+    clientPrefix: "Klient",
+    youPrefix: "Ty",
+    ourMinStr: "Nasz min: €",
+    theirMaxStr: "Ich max: €",
+    agenda: ['Rapport & Agenda', 'Odkrywanie (Bóle)', 'Pitch / Demo', 'Negocjacje (ZOPA)', 'Kolejne kroki'],
+  },
+  ua: {
+    role: "Директор із закупівель · Comarch S.A.",
+    zopaTitle: "Простір торгів (ZOPA)",
+    ourZone: "Наша зона",
+    clientZone: "Зона клієнта",
+    gazeZone: "зона погляду · камера",
+    phaseCoop: "Фаза: Кооперація",
+    phaseOpp: "Фаза: Протистояння",
+    whatToSay: "→ що сказати",
+    factsData: "← факти · дані",
+    compMentioned: "⚡ Згадано конкурента",
+    bcItem1: "Впровадження SAP: 6–18 міс. — старт за 2 тижні",
+    bcItem2: "TCO на 40% нижче при аналогічних функціях",
+    bcItem3: "Нативна інтеграція з Zoom/Teams, без установки",
+    close: "Закрити",
+    clientPrefix: "Клієнт",
+    youPrefix: "Ви",
+    ourMinStr: "Наш мін: €",
+    theirMaxStr: "Їхній макс: €",
+    agenda: ['Рапорт & Agenda', 'Діскавері (Болі)', 'Пітч / Демо', 'Торги (ZOPA)', 'Next Steps'],
+  },
+  ru: {
+    role: "Директор по закупкам · Comarch S.A.",
+    zopaTitle: "Пространство торга (ZOPA)",
+    ourZone: "Наша зона",
+    clientZone: "Зона клиента",
+    gazeZone: "зона взгляда · камера",
+    phaseCoop: "Фаза: Кооперация",
+    phaseOpp: "Фаза: Противостояние",
+    whatToSay: "→ что сказать",
+    factsData: "← факты · данные",
+    compMentioned: "⚡ Конкурент упомянут",
+    bcItem1: "Внедрение SAP: 6–18 мес. — старт за 2 недели",
+    bcItem2: "TCO на 40% ниже при аналогичных функциях",
+    bcItem3: "Нативная интеграция с Zoom/Teams, без установки",
+    close: "Закрыть",
+    clientPrefix: "Клиент",
+    youPrefix: "Вы",
+    ourMinStr: "Наш мин: €",
+    theirMaxStr: "Их макс: €",
+    agenda: ['Раппорт & Agenda', 'Дискавери (Боли)', 'Питч / Демо', 'Торги (ZOPA)', 'Next Steps'],
+  }
 };
 
-function setLanguage(lang) {
-    document.documentElement.lang = lang;
-    const t = translations[lang];
-    if (!t) return;
+let currentLang = 'en';
 
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const keys = key.split('.');
-        let val = t;
-        for (let k of keys) {
-            if (val) val = val[k];
-        }
-        if (val) {
-            if (el.tagName === 'INPUT' && el.type === 'button') el.value = val;
-            else el.textContent = val;
-        }
+window.setLanguage = function(lang) {
+  currentLang = lang;
+  document.getElementById('html-root').lang = lang;
+  
+  const selectEl = document.getElementById('lang-select');
+  if (selectEl && selectEl.value !== lang) selectEl.value = lang;
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang][key]) {
+      el.textContent = translations[lang][key];
+    }
+  });
+
+  updateHybridAgenda(true); 
+  updatePhaseText();
+  updateRatioLabels();
+  forceZopaLabelsUpdate();
+};
+
+// ── TIMER & AGENDA ──
+let secs = 0;
+const agendaLimits = [3 * 60, 12 * 60, 25 * 60, 35 * 60, 40 * 60];
+const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+function updateHybridAgenda(forceRebuild = false) {
+  const container = document.getElementById('agenda-steps');
+  if (!container) return;
+  if (container.children.length === 0 || forceRebuild) {
+    container.innerHTML = '';
+    agendaLimits.forEach((_, i) => {
+      const el = document.createElement('div');
+      el.id = `step-${i}`;
+      container.appendChild(el);
     });
+  }
 
-    if (ui && ui.ratioClient && ui.ratioClient.textContent) {
-        const clientMatch = ui.ratioClient.textContent.match(/(\d+%|—%)/);
-        const clientPct = clientMatch ? clientMatch[0] : '—%';
-        ui.ratioClient.textContent = `${t.roles.client}  ${clientPct}`;
-    }
-    if (ui && ui.ratioYou && ui.ratioYou.textContent) {
-        const youMatch = ui.ratioYou.textContent.match(/(\d+%|—%)/);
-        const youPct = youMatch ? youMatch[0] : '—%';
-        ui.ratioYou.textContent = `${t.roles.you}  ${youPct}`;
-    }
+  const t = translations[currentLang];
+  let currentFound = false;
+  
+  agendaLimits.forEach((limit, i) => {
+    const stepName = t.agenda[i];
+    const el = document.getElementById(`step-${i}`);
+    if(!el) return;
+    const prevLimit = i === 0 ? 0 : agendaLimits[i - 1];
+    const stepDuration = limit - prevLimit;
 
-    if (ui && ui.phaseBadge && ui.phaseBadge.textContent) {
-        const currentText = ui.phaseBadge.getAttribute('data-raw-phase') || ui.phaseBadge.textContent;
-        
-        if (currentText === 'LISTENING...') ui.phaseBadge.textContent = t.ui.listening;
-        else if (currentText.toLowerCase() === 'awaiting audio') ui.phaseBadge.textContent = t.ui.awaitingAudio;
-        else {
-            const lowerText = currentText.toLowerCase();
-            const enAgenda = translations.en.agenda;
-            const matchedKey = Object.keys(enAgenda).find(k => enAgenda[k].toLowerCase() === lowerText);
-            
-            if (matchedKey && t.agenda[matchedKey]) {
-                ui.phaseBadge.textContent = t.agenda[matchedKey].toUpperCase();
-            } else {
-                ui.phaseBadge.textContent = currentText.toUpperCase();
-            }
+    if (secs >= limit) {
+      if (!currentFound && i === agendaLimits.length - 1) {
+        currentFound = true;
+        const elapsed = secs - prevLimit;
+        el.className = 'g-step active danger';
+        if (!el.querySelector('.g-fill')) {
+          el.innerHTML = `<div class="g-active-top"><div class="g-active-title"><div class="g-dot"></div>${stepName}</div><div class="g-time" id="time-${i}"></div></div><div class="g-bar"><div class="g-fill" id="fill-${i}" style="width: 100%;"></div></div>`;
+        } else if (forceRebuild) {
+           el.querySelector('.g-active-title').innerHTML = `<div class="g-dot"></div>${stepName}`;
         }
+        document.getElementById(`time-${i}`).textContent = `+${formatTime(elapsed - stepDuration)}`;
+      } else {
+        el.className = 'g-step done';
+        el.innerHTML = '';
+      }
+    } else if (!currentFound) {
+      currentFound = true;
+      const elapsed = secs - prevLimit;
+      const pct = Math.min((elapsed / stepDuration) * 100, 100);
+
+      let stateClass = '';
+      if (pct >= 90) stateClass = 'danger';
+      else if (pct >= 75) stateClass = 'warn';
+
+      el.className = `g-step active ${stateClass}`;
+      
+      if (!el.querySelector('.g-fill')) {
+         el.innerHTML = `<div class="g-active-top"><div class="g-active-title"><div class="g-dot"></div>${stepName}</div><div class="g-time" id="time-${i}"></div></div><div class="g-bar"><div class="g-fill" id="fill-${i}"></div></div>`;
+      } else if (forceRebuild) {
+         el.querySelector('.g-active-title').innerHTML = `<div class="g-dot"></div>${stepName}`;
+      }
+      document.getElementById(`time-${i}`).textContent = `${formatTime(elapsed)} / ${formatTime(stepDuration)}`;
+      document.getElementById(`fill-${i}`).style.width = `${pct}%`;
+
+    } else {
+      el.className = 'g-step upcoming';
+      el.innerHTML = stepName;
+    }
+  });
+}
+
+setInterval(() => {
+  secs++;
+  document.getElementById('timer').textContent = formatTime(secs);
+  updateHybridAgenda();
+}, 1000);
+updateHybridAgenda();
+
+// ── NEGOTIATION MODE & ZOPA DYNAMICS ──
+let currentPhase = null;
+let currentSentiment = "Neutral";
+
+function updatePhaseText() {
+    const el = document.getElementById('mode-glow');
+    const txt = document.getElementById('mode-text');
+    if(!txt || !el) return;
+
+    if (!currentPhase) {
+        txt.textContent = `Phase: Awaiting AI...`;
+        el.className = 'mode-glow coop';
+        txt.className = 'mode-text coop';
+        txt.style.color = "var(--blue)";
+        txt.style.textShadow = "0 0 12px rgba(59,130,246,0.6)";
+        el.style.background = "radial-gradient(circle at 50% 0%, rgba(59,130,246,0.15) 0%, transparent 75%)";
+        return;
+    }
+
+    txt.textContent = `Phase: ${currentPhase}`;
+    
+    if (currentSentiment === "Positive") {
+        el.className = 'mode-glow coop';
+        txt.className = 'mode-text coop';
+    } else if (currentSentiment === "Friction") {
+        el.className = 'mode-glow opp';
+        txt.className = 'mode-text opp';
+    } else {
+        // Neutral (custom look or fallback to coop)
+        el.className = 'mode-glow coop';
+        txt.className = 'mode-text coop';
+        txt.style.color = "var(--blue)";
+        txt.style.textShadow = "0 0 12px rgba(59,130,246,0.6)";
+        el.style.background = "radial-gradient(circle at 50% 0%, rgba(59,130,246,0.20) 0%, transparent 75%)";
+    }
+}
+
+const BASE_MIN = 20; 
+const BASE_MAX = 200; 
+let usMinVal = null; 
+let lastThemMaxVal = null;
+
+function updateZopaVisuals() {
+    const zUs = document.getElementById('z-us');
+    const zThem = document.getElementById('z-them');
+    const lUsMin = document.getElementById('l-us-min');
+    const lThemMax = document.getElementById('l-them-max');
+    const zopa = document.getElementById('z-zopa');
+    if(!zUs) return;
+
+    if (usMinVal === null || lastThemMaxVal === null) {
+        zUs.style.display = 'none';
+        zThem.style.display = 'none';
+        zopa.classList.remove('active');
+        zopa.textContent = '';
+        return;
     }
     
-    if (ui && ui.statusText) {
-        if (isSessionActive) ui.statusText.textContent = t.ui.live;
-        else ui.statusText.textContent = t.ui.offline;
+    zUs.style.display = 'block';
+    zThem.style.display = 'block';
+
+    const usMinPct = ((usMinVal - BASE_MIN) / (BASE_MAX - BASE_MIN)) * 100;
+    const themMaxPct = ((lastThemMaxVal - BASE_MIN) / (BASE_MAX - BASE_MIN)) * 100;
+
+    zUs.style.left = usMinPct + '%';
+    zThem.style.right = (100 - themMaxPct) + '%';
+    lUsMin.style.left = usMinPct + '%';
+    lThemMax.style.left = themMaxPct + '%';
+    
+    forceZopaLabelsUpdate();
+
+    if (usMinPct < themMaxPct) {
+        zopa.style.left = usMinPct + '%';
+        zopa.style.right = (100 - themMaxPct) + '%';
+        zopa.classList.add('active');
+        zopa.textContent = `ZOPA (€${lastThemMaxVal - usMinVal}k)`;
+    } else {
+        zopa.classList.remove('active');
+        zopa.textContent = '';
+    }
+}
+
+function forceZopaLabelsUpdate() {
+  const t = translations[currentLang];
+  const lUsMin = document.getElementById('l-us-min');
+  const lThemMax = document.getElementById('l-them-max');
+  if(lUsMin && usMinVal !== null) lUsMin.textContent = `${t.ourMinStr}${usMinVal}k`;
+  else if (lUsMin) lUsMin.textContent = '';
+  
+  if(lThemMax && lastThemMaxVal !== null) lThemMax.textContent = `${t.theirMaxStr}${lastThemMaxVal}k`;
+  else if (lThemMax) lThemMax.textContent = '';
+}
+
+
+// ── WAVEFORM & TALK-TO-LISTEN RATIO ──
+let ratioUs = 0.50;
+let speaking = false; 
+
+function updateRatioLabels() {
+    const t = translations[currentLang];
+    const sThem = document.getElementById('sr-them');
+    const sUs = document.getElementById('sr-us');
+    if(sThem) sThem.textContent = `${t.clientPrefix}: ${Math.round((1 - ratioUs) * 100)}%`;
+    if(sUs) sUs.textContent = `${t.youPrefix}: ${Math.round(ratioUs * 100)}%`;
+}
+
+// Waveform drawing
+(function() {
+  const cv = document.getElementById('wv');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const N = 40; 
+  let h   = Array.from({length:N}, () => Math.random()*0.2+0.05);
+  let tgt = Array.from({length:N}, () => Math.random()*0.2+0.05);
+  let f = 0;
+
+  function draw() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const bw = cv.width/N, cy = cv.height/2;
+
+    if (f % 60 === 0) {
+        // Very slow smoothing of ratio based on speaking var from VAD
+        ratioUs += (speaking ? -0.005 : 0.005);
+        ratioUs = Math.max(0.1, Math.min(ratioUs, 0.9));
+        updateRatioLabels();
+        
+        document.getElementById('sr-them').className = !speaking ? 'sr-them sr-active' : 'sr-them sr-inactive';
+        document.getElementById('sr-us').className = speaking ? 'sr-us sr-active' : 'sr-us sr-inactive';
     }
 
-    if (ui && ui.sessionBtn) {
-        if (isSessionActive) {
-            ui.sessionBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg> ${t.ui.stopSession}`;
-        } else if (ui.sessionBtn.disabled) {
-            ui.sessionBtn.innerHTML = `<span style="animation: pulse-dot 1s infinite">●</span> ${t.ui.connecting}`;
-        } else {
-            ui.sessionBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> ${t.ui.startSession}`;
+    h = h.map((v,i) => v + (tgt[i]-v)*0.2);
+
+    if (f%4===0) {
+      tgt = tgt.map((_,i) => {
+        const isUsBar = (i / N) >= (1 - ratioUs);
+        const isActiveSide = isUsBar ? !speaking : speaking; // system loopback is usually the other party (Client)
+        if (isActiveSide) { 
+            const w = Math.sin(f*0.04+i*0.5)*0.25+0.3; 
+            return Math.random()*w+0.1; 
         }
+        return Math.random()*0.1+0.02; 
+      });
+    }
+
+    h.forEach((bh,i) => {
+      const x=i*bw+bw*0.18, w=bw*0.64, barH=bh*cv.height*0.88;
+      const isUsBar = (i / N) >= (1 - ratioUs);
+      const isActiveSide = isUsBar ? !speaking : speaking;
+
+      const a = isActiveSide ? Math.min(0.45+bh*0.95, 1) : 0.25;
+      ctx.fillStyle = isUsBar ? `rgba(59,130,246,${a})` : `rgba(168,85,247,${a})`;
+
+      const r=w/2, y=cy-barH/2;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+      ctx.lineTo(x+w,y+barH-r); ctx.arcTo(x+w,y+barH,x+w-r,y+barH,r);
+      ctx.lineTo(x+r,y+barH); ctx.arcTo(x,y+barH,x,y+barH-r,r);
+      ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); ctx.fill();
+    });
+    f++; requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── BATTLECARD ──
+let bcSecs = 10, bcInt = null;
+window.hideCard = function() {
+  const el = document.getElementById('bc');
+  if(el) el.classList.remove('show');
+  if (bcInt) clearInterval(bcInt);
+}
+
+function showBattlecard(competitorName, points, duration_s = 15) {
+  const bc = document.getElementById('bc');
+  if(!bc) return;
+  
+  bc.querySelector('.bc-title').textContent = `NegotiateAI vs ${competitorName}`;
+  const list = bc.querySelector('.bc-list');
+  list.innerHTML = '';
+  points.forEach(pt => {
+      const div = document.createElement('div');
+      div.className = 'bc-item';
+      div.textContent = pt;
+      list.appendChild(div);
+  });
+  
+  bcSecs = duration_s;
+  bc.classList.add('show');
+  document.getElementById('bc-t').textContent = `${bcSecs}s`;
+  document.getElementById('bc-fill').style.width = '100%';
+  document.getElementById('bc-fill').style.transition = `width ${duration_s}s linear`;
+  
+  setTimeout(() => { document.getElementById('bc-fill').style.width = '0%'; }, 50);
+
+  if (bcInt) clearInterval(bcInt);
+  bcInt = setInterval(() => {
+    bcSecs--;
+    document.getElementById('bc-t').textContent = `${bcSecs}s`;
+    if (bcSecs <= 0) hideCard();
+  }, 1000);
+}
+
+
+// ── DIRECTIVES ──
+function showDirective(type, message) {
+    const el = document.getElementById('hint');
+    const textNode = document.getElementById('hint-text');
+    if(!el) return;
+    
+    el.classList.add('fadeout');
+    setTimeout(() => {
+        textNode.textContent = message;
+        if(type === 'warning') {
+            el.style.background = 'rgba(239,68,68,0.07)';
+            el.style.border = '1px solid rgba(239,68,68,0.18)';
+        } else {
+            el.style.background = 'rgba(59,130,246,0.07)';
+            el.style.border = '1px solid rgba(59,130,246,0.18)';
+        }
+        el.classList.remove('fadeout');
+    }, 360);
+}
+
+// ── TRIGGERS ──
+function addTrigger(emoji, label) {
+    const log = document.getElementById('trigger-log');
+    if(!log) return;
+    const div = document.createElement('div');
+    div.className = 'trig fresh';
+    const t = formatTime(secs);
+    div.textContent = `${emoji || '⚡'} ${label} · ${t}`;
+    log.prepend(div);
+    
+    // remove fresh class slowly
+    setTimeout(() => div.classList.remove('fresh'), 3000);
+}
+
+
+// ── GEMINI LIVE API INTEGRATION ──
+
+let ws;
+let audioCtx;
+let source;
+let processor;
+let mediaStream;
+let intentionalStop = false;
+window.sessionLogs = [];
+
+// Dev Console
+window.toggleDevConsole = function() {
+    const dc = document.getElementById('dev-console');
+    if(!dc) return;
+    if (dc.style.display === 'none' || dc.style.display === '') {
+        dc.style.display = 'flex';
+    } else {
+        dc.style.display = 'none';
     }
 }
 
-// ─── DOM Refs ──────────────────────────────────────────────────────────
-const ui = {};
-function cacheDom() {
-    ui.apiKeyInput    = document.getElementById('api-key-input');
-    ui.sessionBtn     = document.getElementById('session-btn');
-    ui.devConsoleToggle = document.getElementById('dev-console-toggle');
-    ui.devConsolePanel = document.getElementById('dev-console-panel');
-    ui.prosConsPanel  = document.getElementById('pros-cons-panel');
-    ui.statusDot      = document.getElementById('status-dot');
-    ui.statusText     = document.getElementById('status-text');
-    ui.timerDisplay   = document.getElementById('timer');
-    ui.phaseBadge     = document.getElementById('phase-badge');
-    ui.strategyTitle  = document.getElementById('strategy-title');
-    ui.batnaDetails   = document.getElementById('batna-details');
-    ui.valClientAnchor = document.getElementById('val-client-anchor');
-    ui.valYourTarget  = document.getElementById('val-your-target');
-    ui.valZopa        = document.getElementById('val-zopa');
-    ui.hintBox        = document.getElementById('hint-box');
-    ui.hintText       = document.getElementById('hint-text');
-    ui.ratioClient    = document.getElementById('ratio-client');
-    ui.ratioYou       = document.getElementById('ratio-you');
-    ui.timeline       = document.getElementById('timeline-events');
-    ui.prosConsContent = document.getElementById('pros-cons-content');
-    ui.logArea        = document.getElementById('log-area');
-    ui.autoScroll     = document.getElementById('auto-scroll-toggle');
-    ui.audioCanvas    = document.getElementById('audio-canvas');
+function logToDevConsole(type, data) {
+    const logs = document.getElementById('dev-logs');
+    if(!logs) return;
+    
+    const div = document.createElement('div');
+    div.style.padding = '8px';
+    div.style.borderRadius = '5px';
+    div.style.wordBreak = 'break-all';
+    div.style.whiteSpace = 'pre-wrap';
+
+    if (type === 'SENT') {
+        div.style.background = 'rgba(59,130,246,0.1)';
+        div.style.border = '1px solid rgba(59,130,246,0.2)';
+        div.style.color = '#93c5fd'; // blue-300
+    } else if (type === 'RECV') {
+        div.style.background = 'rgba(168,85,247,0.1)';
+        div.style.border = '1px solid rgba(168,85,247,0.2)';
+        div.style.color = '#d8b4fe'; // purple-300
+    } else {
+        div.style.background = 'rgba(239,68,68,0.1)';
+        div.style.border = '1px solid rgba(239,68,68,0.2)';
+        div.style.color = '#fca5a5'; // red-300
+    }
+
+    let payloadStr = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    // don't log raw binary audio to console
+    if (payloadStr.includes('"mimeType": "audio/pcm;rate=16000"')) {
+        payloadStr = '{ realtimeInput: { audio: [PCM Data...] } }';
+    }
+
+    div.textContent = `[${type}] ${new Date().toLocaleTimeString()}\n${payloadStr}`;
+    logs.prepend(div);
 }
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  TOOL DECLARATIONS
-//  These are sent to Gemini so it returns structured JSON function calls
-// ═══════════════════════════════════════════════════════════════════════
 
 const toolDeclarations = [
-    {
-        name: 'update_zopa',
-        description: 'Update the ZOPA (Zone of Possible Agreement) display with negotiation anchors and range. Call this when price points, anchors, or terms are mentioned.',
-        parameters: {
-            type: 'object',
-            properties: {
-                framework_label: { type: 'string', description: 'Strategy framework title, e.g. BATNA, ZOPA' },
-                client_anchor:   { type: 'string', description: "Client's stated price or term anchor" },
-                your_target:     { type: 'string', description: 'Recommended target price/term for the user' },
-                zopa_range:      { type: 'string', description: 'Zone of Possible Agreement range, e.g. "$45K - $60K"' }
-            }
-        }
-    },
-    {
-        name: 'update_analytics',
-        description: 'Update the live analytics dashboard: current negotiation phase, talk-time ratio. Call this frequently as the conversation progresses.',
-        parameters: {
-            type: 'object',
-            properties: {
-                phase:              { type: 'string', description: 'Current negotiation phase: Small-talk, Discovery, Negotiation, Objections, Agreement, Closing' },
-                talk_ratio_client:  { type: 'integer', description: 'Estimated percentage of time client has been speaking (0-100)' },
-                talk_ratio_you:     { type: 'integer', description: 'Estimated percentage of time user has been speaking (0-100)' }
-            }
-        }
-    },
-    {
-        name: 'suggest_directive',
-        description: 'Show a tactical directive/hint telling the user what to say or do next. Use this for real-time coaching.',
-        parameters: {
-            type: 'object',
-            properties: {
-                text:    { type: 'string', description: 'Concise, actionable tactical hint for the user' },
-                urgency: { type: 'string', description: 'Urgency level', enum: ['low', 'medium', 'high'] }
-            },
-            required: ['text']
-        }
-    },
-    {
-        name: 'show_battlecard',
-        description: 'Slide out a context panel with pros, cons, and intel about a competitor, product, or objection topic. Triggered when specific topics need deeper context.',
-        parameters: {
-            type: 'object',
-            properties: {
-                title: { type: 'string', description: 'Title of the topic/competitor/objection' },
-                pros:  { type: 'array', items: { type: 'string' }, description: 'List of strengths/advantages' },
-                cons:  { type: 'array', items: { type: 'string' }, description: 'List of weaknesses/risks' }
-            },
-            required: ['title', 'pros', 'cons']
-        }
-    },
-    {
-        name: 'add_trigger',
-        description: 'Log a key event to the negotiation timeline. Call when a significant moment occurs: anchor dropped, competitor mentioned, commitment made, phase shift, etc.',
-        parameters: {
-            type: 'object',
-            properties: {
-                label: { type: 'string', description: 'Highly concise event label, e.g. "Competitor AcmeCorp mentioned"' }
-            },
-            required: ['label']
-        }
+  {
+    name: "update_zopa",
+    description: "Update ZOPA panel when numerical terms are mentioned in the conversation.",
+    parameters: {
+      type: "object",
+      properties: {
+        ourWalkaway: { type: "number", description: "Our minimum/walkaway price in €k (if revealed)" },
+        clientMentionedBudget: { type: "number", description: "Budget the client mentioned in €k" },
+        currentOffer: { type: "number", description: "Current offer on table in €k" }
+      }
     }
+  },
+  {
+    name: "update_analytics",
+    description: "Update the phase of negotiation and sentiment.",
+    parameters: {
+      type: "object",
+      properties: {
+        phase: { type: "string", enum: ["Rapport","Discovery","Negotiation","Closing"] },
+        sentiment: { type: "string", enum: ["Positive","Neutral","Friction"] }
+      }
+    }
+  },
+  {
+    name: "suggest_directive",
+    description: "Give a direct coaching hint to the seller based on exactly what was just said.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["tactic","warning"] },
+        message: { type: "string", description: "A very short, punchy instruction (max 10 words)" }
+      },
+      required: ["type","message"]
+    }
+  },
+  {
+    name: "show_battlecard",
+    description: "Show a competitor battlecard when a competitor is mentioned.",
+    parameters: {
+      type: "object",
+      properties: {
+        competitorName: { type: "string" },
+        talkingPoints: { type: "array", items: { type: "string" } },
+        displaySeconds: { type: "number" }
+      },
+      required: ["competitorName","talkingPoints"]
+    }
+  },
+  {
+    name: "add_trigger",
+    description: "Add a minor event chip to the log (like 'budget gap' or 'pause 7s' or 'contradiction').",
+    parameters: {
+      type: "object",
+      properties: {
+        emoji: { type: "string", description: "A single emoji representing the event" },
+        label: { type: "string", description: "Short textual description (max 3 words)" }
+      },
+      required: ["label"]
+    }
+  }
 ];
 
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
-// ─── System Instruction ────────────────────────────────────────────────
-const SYSTEM_INSTRUCTION = `You are an expert negotiation AI observing a live sales call. 
+function startAudioCapture(stream) {
+  mediaStream = stream;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  source = audioCtx.createMediaStreamSource(stream);
+  processor = audioCtx.createScriptProcessor(4096, 1, 1);
+  
+  source.connect(processor);
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = 0; 
+  processor.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  processor.onaudioprocess = (e) => {
+    const inputData = e.inputBuffer.getChannelData(0);
+    const pcm16 = new Int16Array(inputData.length);
+    let sumSquares = 0;
+    for (let i = 0; i < inputData.length; i++) {
+        let val = Math.max(-1, Math.min(1, inputData[i]));
+        pcm16[i] = val < 0 ? val * 0x8000 : val * 0x7FFF;
+        sumSquares += val * val;
+    }
+    
+    const rms = Math.sqrt(sumSquares / inputData.length);
+    speaking = rms > 0.01; 
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const audioPayload = {
+        realtimeInput: {
+          audio: {
+            data: arrayBufferToBase64(pcm16.buffer),
+            mimeType: "audio/pcm;rate=16000"
+          }
+        }
+      };
+      ws.send(JSON.stringify(audioPayload));
+      // purposefully NOT logging audio chunks to dev console to avoid freezing UI
+    }
+  };
+}
+
+function handleToolCall(tc) {
+    const fn = tc.functionCalls[0];
+    if (!fn) return;
+    
+    console.log("[GEMINI TOOL CALL]", fn.name, fn.args);
+    const args = fn.args;
+
+    if (fn.name === "update_zopa") {
+        if(args.ourWalkaway) usMinVal = args.ourWalkaway;
+        if(args.clientMentionedBudget) lastThemMaxVal = args.clientMentionedBudget; 
+        updateZopaVisuals();
+    } 
+    else if (fn.name === "update_analytics") {
+        if(args.phase) currentPhase = args.phase;
+        if(args.sentiment) currentSentiment = args.sentiment;
+        updatePhaseText();
+    }
+    else if (fn.name === "suggest_directive") {
+        showDirective(args.type, args.message);
+    }
+    else if (fn.name === "show_battlecard") {
+        showBattlecard(args.competitorName, args.talkingPoints, args.displaySeconds || 15);
+    }
+    else if (fn.name === "add_trigger") {
+        addTrigger(args.emoji, args.label);
+    }
+
+    // Acknowledge the tool call
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const toolRes = {
+            toolResponse: {
+                functionResponses: [{
+                    id: fn.id,
+                    name: fn.name,
+                    response: { result: "ok" }
+                }]
+            }
+        };
+        ws.send(JSON.stringify(toolRes));
+        logToDevConsole("SENT", toolRes);
+    }
+}
+
+function stopSession() {
+  const intentionallyStopped = intentionalStop === false; // If intentionalStop wasn't already true, the user actively fired the click.
+  intentionalStop = true;
+  if (processor) processor.disconnect();
+  if (source) source.disconnect();
+  if (audioCtx) audioCtx.close();
+  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  if (ws) ws.close();
+
+  if (intentionallyStopped) {
+      if (window.sessionLogs && window.sessionLogs.length > 0) {
+          const formattedLogs = window.sessionLogs.map(log => {
+              try { return JSON.stringify(JSON.parse(log), null, 2); }
+              catch(e) { return log; }
+          }).join("\n\n========================================\n\n");
+          
+          const logBlob = new Blob([formattedLogs], {type: "text/plain"});
+          const url = URL.createObjectURL(logBlob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `gemini-session-${Date.now()}.txt`;
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(url);
+          a.remove();
+          window.sessionLogs = [];
+      }
+  }
+
+  document.getElementById('status-text').textContent = 'Idle';
+  document.getElementById('status-dot').style.background = 'var(--muted)';
+  document.getElementById('status-dot').style.animation = 'none';
+  const btn = document.getElementById('btn-session');
+  btn.textContent = '🎙 Start Session';
+  btn.style.background = 'var(--blue)';
+  btn.onclick = window.startSession;
+  speaking = false;
+}
+
+window.startSession = async function() {
+  intentionalStop = false;
+  
+  const apiKeyInp = document.getElementById('api-key-input');
+  if(!apiKeyInp || !apiKeyInp.value.trim()) {
+      alert("Please enter a Google Gemini API Key first.");
+      return;
+  }
+  const API_KEY = apiKeyInp.value.trim();
+  const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+
+  const src = document.getElementById('audio-src').value;
+  try {
+    let stream;
+    if (src === 'system') {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: false, audio: { echoCancellation: false, noiseSuppression: false } });
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+
+    document.getElementById('status-text').textContent = 'Connecting...';
+    
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      const setupObj = {
+        setup: {
+          model: "models/gemini-3.1-flash-live-preview",
+          generationConfig: {
+            responseModalities: ["AUDIO"]
+          },
+          systemInstruction: {
+            parts: [{ text: `You are an expert negotiation AI observing a live sales call. 
 You MUST act instantly on every utterance by using one of your tools.
 1. ANY time a number, budget, price, or cost is mentioned (e.g. 100, 200k, dollars, euros), YOU MUST call 'update_zopa' with the extracted numbers.
 2. ANY time a competitor is mentioned (e.g. SAP, Oracle, Salesforce), YOU MUST call 'show_battlecard'.
 3. Every time someone finishes a thought, YOU MUST call 'update_analytics' to assess the phase.
 4. If you have advice, call 'suggest_directive'.
 
-Do NOT just listen silently. You are required to call a tool every time you process speech!`;
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════════════════════════════════
-
-/** Convert an ArrayBuffer to a base64 string */
-function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
-
-/** Format seconds → MM:SS */
-function formatTime(s) {
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SESSION FILE LOGGER
-// ═══════════════════════════════════════════════════════════════════════
-
-function addToSessionLog(direction, source, data) {
-    sessionLog.push({
-        time: new Date().toISOString(),
-        elapsed: sessionSeconds,
-        direction,
-        source,
-        data
-    });
-}
-
-function downloadSessionLog() {
-    if (sessionLog.length === 0) return;
-    const filename = `session_${sessionStartTime || Date.now()}.json`;
-    const blob = new Blob([JSON.stringify(sessionLog, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  DEV CONSOLE LOGGER
-// ═══════════════════════════════════════════════════════════════════════
-
-function logToConsole(source, data, type = 'in') {
-    addToSessionLog(type === 'out' ? 'OUT' : (type === 'in' ? 'IN' : 'SYSTEM'), source, data);
-
-    const entry = document.createElement('div');
-    const blockCls = type === 'out' ? 'log-block-out' : (type === 'in' ? 'log-block-in' : '');
-    entry.className = `log-entry ${blockCls}`;
-    const cls = type === 'in' ? 'log-in' : (type === 'out' ? 'log-out' : 'log-err');
-    const t = new Date().toISOString().split('T')[1].slice(0, 12);
-    const arrow = type === 'out' ? '⬆' : (type === 'in' ? '⬇' : '⚙');
-
-    let json = '';
-    try {
-        const clone = JSON.parse(JSON.stringify(data));
-        // Truncate audio data for readability
-        if (clone.realtimeInput && clone.realtimeInput.mediaChunks) {
-            clone.realtimeInput.mediaChunks.forEach(c => {
-                if (c.data && c.data.length > 50) c.data = `[AUDIO ${c.data.length}b]`;
-            });
+Do NOT just listen silently. You are required to call a tool every time you process speech!` }]
+          },
+          tools: [{ functionDeclarations: toolDeclarations }]
         }
-        json = JSON.stringify(clone, null, 2);
-    } catch { json = String(data); }
+      };
+      
+      ws.send(JSON.stringify(setupObj));
+      logToDevConsole("SENT", setupObj);
 
-    entry.innerHTML = `<span class="log-time">[${t}]</span> ${arrow} <span class="${cls}">${source}:</span> ${json.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;')}`;
-    ui.logArea.appendChild(entry);
-    if (ui.autoScroll && ui.autoScroll.checked) ui.logArea.scrollTop = ui.logArea.scrollHeight;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  AUDIO CAPTURE
-// ═══════════════════════════════════════════════════════════════════════
-
-/**
- * Start capturing audio from the given MediaStream.
- * - Downsamples to 16kHz PCM (Int16)
- * - Calculates RMS to set the `isSpeaking` flag
- * - Sends base64-encoded audio frames over the active WebSocket
- */
-function startAudioCapture(stream) {
-    mediaStream = stream;
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(stream);
-
-    // Analyser for waveform visualization
-    analyserNode = audioContext.createAnalyser();
-    analyserNode.fftSize = 256;
-    source.connect(analyserNode);
-
-    // ScriptProcessor for PCM extraction
-    processorNode = audioContext.createScriptProcessor(AUDIO_CHUNK_SIZE, 1, 1);
-    source.connect(processorNode);
-    processorNode.connect(audioContext.destination); // Required for processor to fire
-
-    const inputSampleRate = audioContext.sampleRate;
-    const downsampleRatio = inputSampleRate / TARGET_SAMPLE_RATE;
-
-    processorNode.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-        const inputData = e.inputBuffer.getChannelData(0);
-
-        // ── RMS volume → speaking detection ──
-        let sumSquares = 0;
-        for (let i = 0; i < inputData.length; i++) {
-            sumSquares += inputData[i] * inputData[i];
-        }
-        const rms = Math.sqrt(sumSquares / inputData.length);
-        isSpeaking = rms > SPEAKING_RMS_THRESHOLD;
-
-        // ── Downsample to 16kHz ──
-        const outputLength = Math.floor(inputData.length / downsampleRatio);
-        const pcm16 = new Int16Array(outputLength);
-        for (let i = 0; i < outputLength; i++) {
-            const srcIndex = Math.floor(i * downsampleRatio);
-            let sample = Math.max(-1, Math.min(1, inputData[srcIndex]));
-            pcm16[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-        }
-
-        // ── Send as base64-encoded PCM over WebSocket ──
-        const base64Audio = arrayBufferToBase64(pcm16.buffer);
-        ws.send(JSON.stringify({
-            realtimeInput: {
-                audio: {
-                    mimeType: 'audio/pcm;rate=16000',
-                    data: base64Audio
-                }
-            }
-        }));
+      // Wait for setupComplete before streaming
+      
+      document.getElementById('status-text').textContent = 'Connecting...';
+      
+      const btn = document.getElementById('btn-session');
+      btn.textContent = '⏹ Stop Session';
+      btn.style.background = 'var(--red)';
+      btn.onclick = stopSession;
     };
-
-    logToConsole('Audio', {
-        status: 'Capture started',
-        inputSampleRate,
-        targetSampleRate: TARGET_SAMPLE_RATE,
-        downsampleRatio: downsampleRatio.toFixed(2),
-        chunkSize: AUDIO_CHUNK_SIZE
-    });
-}
-
-function stopAudioCapture() {
-    if (processorNode) { processorNode.disconnect(); processorNode = null; }
-    if (analyserNode) { analyserNode.disconnect(); analyserNode = null; }
-    if (audioContext) { audioContext.close().catch(() => {}); audioContext = null; }
-    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-    isSpeaking = false;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  TOOL CALL HANDLER
-// ═══════════════════════════════════════════════════════════════════════
-
-function handleToolCall(tc) {
-    const { name, args } = tc;
-
-    switch (name) {
-        case 'update_zopa': {
-            if (args.framework_label) ui.strategyTitle.textContent = args.framework_label.toUpperCase();
-            let changed = false;
-            if (args.client_anchor) { ui.valClientAnchor.textContent = args.client_anchor; changed = true; }
-            if (args.your_target)   { ui.valYourTarget.textContent = args.your_target; changed = true; }
-            if (args.zopa_range)    { ui.valZopa.textContent = args.zopa_range; changed = true; }
-            if (changed) ui.batnaDetails.classList.add('visible');
-            break;
-        }
-
-        case 'update_analytics': {
-            if (args.phase) ui.phaseBadge.setAttribute('data-raw-phase', args.phase);
-            const lang = document.documentElement.lang || 'en';
-            const t = translations[lang];
-            if (args.phase) {
-                const lowerPhase = args.phase.toLowerCase();
-                const matchedKey = Object.keys(translations.en.agenda).find(k => translations.en.agenda[k].toLowerCase() === lowerPhase);
-                if (matchedKey && t && t.agenda[matchedKey]) {
-                    ui.phaseBadge.textContent = t.agenda[matchedKey].toUpperCase();
-                } else {
-                    ui.phaseBadge.textContent = args.phase.toUpperCase();
-                }
-            }
-            if (args.talk_ratio_client !== undefined) {
-                ui.ratioClient.textContent = `${t ? t.roles.client : 'CLIENT'}  ${args.talk_ratio_client}%`;
-            }
-            if (args.talk_ratio_you !== undefined) {
-                ui.ratioYou.textContent = `${t ? t.roles.you : 'YOU'}  ${args.talk_ratio_you}%`;
-            }
-            break;
-        }
-
-        case 'suggest_directive': {
-            if (args.text) {
-                ui.hintBox.classList.remove('active', 'active-blue');
-                ui.hintBox.classList.add(args.urgency === 'high' ? 'active' : 'active-blue');
-                ui.hintText.textContent = args.text;
-            }
-            break;
-        }
-
-        case 'show_battlecard': {
-            ui.prosConsPanel.classList.add('open');
-            ui.prosConsPanel.querySelector('.panel-title').textContent = `⚡ ${args.title}`;
-            let html = '';
-            if (args.pros) args.pros.forEach(p => html += `<div class="pro-item">${p}</div>`);
-            if (args.cons) args.cons.forEach(c => html += `<div class="con-item">${c}</div>`);
-            ui.prosConsContent.innerHTML = html;
-            break;
-        }
-
-        case 'add_trigger': {
-            const pill = document.createElement('div');
-            pill.className = 'event-pill';
-            pill.innerHTML = `<span class="event-time">${formatTime(sessionSeconds)}</span><span>${args.label}</span>`;
-            ui.timeline.appendChild(pill);
-            ui.timeline.parentElement.scrollLeft = ui.timeline.parentElement.scrollWidth;
-            break;
-        }
-
-        default:
-            logToConsole('ToolCall', { warning: `Unknown tool: ${name}`, args }, 'err');
-    }
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SESSION MANAGEMENT (WebSocket lifecycle)
-// ═══════════════════════════════════════════════════════════════════════
-
-async function startSession() {
-    const apiKey = ui.apiKeyInput.value.trim();
-    if (!apiKey) { alert('Please enter a Gemini API Key'); return; }
-    localStorage.setItem('gemini_api_key', apiKey);
-
-    // Reset state for a fresh session (no resume)
-    sessionLog = [];
-    sessionStartTime = new Date().toISOString().replace(/[:.]/g, '-');
-
-    // UI → connecting
-    ui.sessionBtn.disabled = true;
-    const t = translations[document.documentElement.lang || 'en'];
-    ui.sessionBtn.innerHTML = `<span style="animation: pulse-dot 1s infinite">●</span> ${t ? t.ui.connecting : 'CONNECTING...'}`;
-
-    try {
-        // 1. Capture media stream
-        logToConsole('System', { status: 'Requesting media access...' });
-        const audioSource = document.getElementById('preset-select')?.value || 'microphone';
-        let stream;
-        if (audioSource === 'system_audio') {
-            // Try getDisplayMedia for system audio (requires user gesture)
-            try {
-                stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: false });
-            } catch {
-                logToConsole('System', { info: 'System audio unavailable, falling back to microphone' });
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            }
-        } else {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        }
-        logToConsole('Audio', { status: 'Media stream acquired' });
-
-        // 2. Open WebSocket — fresh connection, no session resumption
-        const wsUrl = `${GEMINI_WS_URL}?key=${apiKey}`;
-        logToConsole('Gemini', { action: 'Opening fresh WebSocket (no session resume)...' }, 'out');
-
-        let setupResolve, setupReject;
-        const setupPromise = new Promise((resolve, reject) => {
-            setupResolve = resolve;
-            setupReject = reject;
-        });
-
-        ws = new WebSocket(wsUrl);
-
-        // Connection timeout
-        const timeout = setTimeout(() => {
-            const errParam = `Connection timeout (${CONNECTION_TIMEOUT_MS / 1000}s) — no setupComplete received`;
-            logToConsole('Gemini', { error: errParam }, 'err');
-            ws.close();
-            setupReject(new Error(errParam));
-            stopSession();
-        }, CONNECTION_TIMEOUT_MS);
-
-        ws.onopen = () => {
-            logToConsole('Gemini', { status: 'WebSocket upgraded (101). Sending setup...' });
-
-            // ── Send BidiGenerateContentSetup ──
-            const setupPayload = {
-                setup: {
-                    model: MODEL_ID,
-                    systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-                    tools: [{ functionDeclarations: toolDeclarations }],
-                    generationConfig: {
-                        responseModalities: ['AUDIO']
-                    }
-                }
-            };
-            logToConsole('Client (Setup)', setupPayload, 'out');
-            ws.send(JSON.stringify(setupPayload));
-        };
-
-        ws.onmessage = async (event) => {
-            let textData = event.data;
-            if (textData instanceof Blob) {
-                try {
-                    textData = await textData.text();
-                } catch (e) {
-                    logToConsole('System', { error: 'Failed to read Blob from WebSocket' }, 'err');
-                    return;
-                }
-            }
-
-            let data;
-            try { data = JSON.parse(textData); }
-            catch (err) { logToConsole('Parse Error', textData, 'err'); return; }
-
-            logToConsole('Gemini', data, 'in');
-
-            // ── setupComplete → resolve promise ──
-            if (data.setupComplete) {
-                clearTimeout(timeout);
-                setupResolve();
-                return;
-            }
-
-            // ── serverContent → route tool calls ──
-            if (data.serverContent) {
-                const turn = data.serverContent.modelTurn;
-                if (turn && turn.parts) {
-                    const calls = [];
-                    turn.parts.forEach(part => {
-                        if (part.functionCall) {
-                            calls.push(part.functionCall);
-                            handleToolCall(part.functionCall);
-                        }
-                    });
-                    // Send tool responses when turn is complete
-                    if (data.serverContent.turnComplete && calls.length > 0) {
-                        const responsePayload = {
-                            toolResponse: {
-                                functionResponses: calls.map(c => ({
-                                    id: c.id,
-                                    name: c.name,
-                                    response: { output: { success: true } }
-                                }))
-                            }
-                        };
-                        logToConsole('Client (Tool Response)', responsePayload, 'out');
-                        ws.send(JSON.stringify(responsePayload));
-                    }
-                }
-            }
-        };
-
-        ws.onerror = (err) => {
-            clearTimeout(timeout);
-            logToConsole('Gemini', { error: 'WebSocket Error', detail: String(err) }, 'err');
-            stopSession();
-        };
-
-        ws.onclose = (event) => {
-            clearTimeout(timeout);
-            logToConsole('Gemini', { status: `Closed (code=${event.code}, reason=${event.reason || 'none'})` });
-            if (isSessionActive) stopSession();
-        };
-
-        // 3. Wait for setupComplete before starting audio transmission
-        await setupPromise;
-        startAudioCapture(stream);
-        onSessionConnected();
-
-    } catch (err) {
-        console.error(err);
-        logToConsole('System', { error: err.message }, 'err');
-        stopSession();
-    }
-}
-
-/** Called when setupComplete is received — session is fully live */
-function onSessionConnected() {
-    isSessionActive = true;
-
-    ui.statusDot.className = 'status-dot live';
-    const t = translations[document.documentElement.lang || 'en'];
-    ui.statusText.textContent = t ? t.ui.live : 'LIVE';
-    ui.statusText.style.color = 'var(--accent-green)';
-
-    const tt = translations[document.documentElement.lang || 'en'];
-    ui.sessionBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg> ${tt ? tt.ui.stopSession : 'STOP SESSION'}`;
-    ui.sessionBtn.className = 'btn-danger';
-    ui.sessionBtn.disabled = false;
-
-    // Timer
-    sessionSeconds = 0;
-    ui.timerDisplay.textContent = '00:00';
-    timerInterval = setInterval(() => {
-        sessionSeconds++;
-        ui.timerDisplay.textContent = formatTime(sessionSeconds);
-    }, 1000);
-
-    // Reset UI
-    ui.timeline.innerHTML = '';
-    ui.phaseBadge.setAttribute('data-raw-phase', 'LISTENING...');
-    const tL = translations[document.documentElement.lang || 'en'];
-    ui.phaseBadge.textContent = tL ? tL.ui.listening : 'LISTENING...';
-}
-
-function stopSession() {
-    // Close WebSocket
-    if (ws) {
-        try { ws.close(); } catch {}
-        ws = null;
-    }
-
-    // Stop audio
-    stopAudioCapture();
-
-    isSessionActive = false;
-    clearInterval(timerInterval);
-
-    // Auto-download session log
-    if (sessionLog.length > 0) {
-        logToConsole('System', { status: `Session ended. ${sessionLog.length} log entries.` });
-        downloadSessionLog();
-    }
-
-    // UI → offline
-    ui.statusDot.className = 'status-dot';
-    const tO = translations[document.documentElement.lang || 'en'];
-    ui.statusText.textContent = tO ? tO.ui.offline : 'Offline';
-    ui.statusText.style.color = 'var(--text-secondary)';
-    ui.sessionBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> ${tO ? tO.ui.startSession : 'START SESSION'}`;
-    ui.sessionBtn.className = 'btn-primary';
-    ui.sessionBtn.disabled = false;
-}
-
-function toggleSession() {
-    if (isSessionActive) {
-        stopSession();
-    } else {
-        startSession();
-    }
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  WAVEFORM VISUALIZER
-// ═══════════════════════════════════════════════════════════════════════
-
-function initAudioCanvas() {
-    const cvs = ui.audioCanvas;
-    if (!cvs) return;
-    const ctx = cvs.getContext('2d');
-    let dataArray;
-
-    function draw() {
-        requestAnimationFrame(draw);
-        const w = cvs.clientWidth, h = cvs.clientHeight;
-        if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
-        ctx.clearRect(0, 0, w, h);
-
-        if (!analyserNode || !isSessionActive) {
-            // Flatline
-            const grad = ctx.createLinearGradient(0, 0, w, 0);
-            grad.addColorStop(0, 'rgba(77, 124, 255, 0)');
-            grad.addColorStop(0.5, 'rgba(77, 124, 255, 0.3)');
-            grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
-            ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
-            ctx.strokeStyle = grad; ctx.lineWidth = 2; ctx.stroke();
-            return;
-        }
-
-        if (!dataArray) dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-        analyserNode.getByteTimeDomainData(dataArray);
-
-        const grad = ctx.createLinearGradient(0, 0, w, 0);
-        grad.addColorStop(0, '#00d4ff');
-        grad.addColorStop(0.5, '#4d7cff');
-        grad.addColorStop(1, '#a855f7');
-
-        ctx.beginPath();
-        const sliceW = w / dataArray.length;
-        let x = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            const v = dataArray[i] / 128.0;
-            const y = (v * h) / 2;
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            x += sliceW;
-        }
-        ctx.lineTo(w, h / 2);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = isSpeaking ? 4 : 2;
-        ctx.shadowColor = isSpeaking ? '#00e676' : '#00d4ff';
-        ctx.shadowBlur = isSpeaking ? 20 : 12;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // Thinner overlay
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-    }
-    draw();
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  PARTICLE BACKGROUND
-// ═══════════════════════════════════════════════════════════════════════
-
-function initParticles() {
-    const canvas = document.getElementById('particles-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let particles = [];
-    const COUNT = 60;
-
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-    window.addEventListener('resize', resize);
-    resize();
-
-    class Particle {
-        constructor() { this.reset(); }
-        reset() {
-            this.x = Math.random() * canvas.width;
-            this.y = Math.random() * canvas.height;
-            this.size = Math.random() * 2 + 0.5;
-            this.speedX = (Math.random() - 0.5) * 0.3;
-            this.speedY = (Math.random() - 0.5) * 0.3;
-            this.opacity = Math.random() * 0.4 + 0.1;
-            this.hue = Math.random() > 0.5 ? 200 : 270;
-        }
-        update() {
-            this.x += this.speedX;
-            this.y += this.speedY;
-            if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
-        }
-        draw() {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fillStyle = `hsla(${this.hue}, 100%, 70%, ${this.opacity})`;
-            ctx.fill();
-        }
-    }
-
-    for (let i = 0; i < COUNT; i++) particles.push(new Particle());
-
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 150) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = `rgba(77, 124, 255, ${0.06 * (1 - dist / 150)})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
-            }
-        }
-        particles.forEach(p => { p.update(); p.draw(); });
-        requestAnimationFrame(animate);
-    }
-    animate();
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════
-//  INITIALIZATION
-// ═══════════════════════════════════════════════════════════════════════
-
-window.addEventListener('DOMContentLoaded', () => {
-    cacheDom();
-
-    // Restore API key
-    const savedKey = localStorage.getItem('gemini_api_key');
-    if (savedKey) ui.apiKeyInput.value = savedKey;
-
-    // Wire buttons
-    ui.sessionBtn.addEventListener('click', toggleSession);
-    ui.devConsoleToggle.addEventListener('click', () => ui.devConsolePanel.classList.toggle('open'));
-
-    // Start visual loops
-    const langSelect = document.getElementById('lang-select');
-    if (langSelect) {
-        langSelect.addEventListener('change', (e) => {
-            setLanguage(e.target.value);
-        });
-        setLanguage(langSelect.value);
-    }
     
-    initAudioCanvas();
-    initParticles();
-});
+    ws.onmessage = async (evt) => {
+        let msgStr = evt.data;
+        if (evt.data instanceof Blob) {
+            msgStr = await evt.data.text();
+        }
+        
+        // VISUAL MARKER FOR THE USER
+        console.log("WS RECV:", msgStr);
+        window.sessionLogs.push(msgStr);
+        logToDevConsole("RECV", msgStr);
+        
+        try {
+            document.getElementById('status-text').textContent = 'Recv: ' + msgStr.substring(0, 30) + '...';
+        } catch(e) {}
+
+        let msg;
+        try { msg = JSON.parse(msgStr); } catch(e){ 
+            console.error("JSON Error", e, msgStr);
+            return; 
+        }
+        
+        if (msg.setupComplete) {
+            startAudioCapture(stream);
+            document.getElementById('status-text').textContent = 'Listening (Setup OK)';
+            document.getElementById('status-dot').style.background = 'var(--green)';
+            document.getElementById('status-dot').style.animation = 'pulse 2s infinite';
+            addTrigger('✅', 'Connected & Listening');
+        }
+
+        if(msg.toolCall) {
+            handleToolCall(msg.toolCall);
+        }
+        
+        if(msg.serverContent) {
+            // It sent a raw text or audio reply
+            console.log("Server responded with content:", msg.serverContent);
+        }
+    };
+    
+    ws.onclose = (evt) => {
+        console.log("WebSocket Closed: code=" + evt.code + " reason=" + evt.reason);
+        if (!intentionalStop && evt.code === 1011) {
+            console.log("Auto-reconnecting due to 1011...");
+            stopSession();
+            setTimeout(() => window.startSession(), 1000);
+        } else {
+            stopSession();
+        }
+    };
+    ws.onerror = (e) => {
+        console.error("Gemini WebSocket Error:", e);
+        logToDevConsole("ERROR", "WebSocket Error occurred.");
+        if (!intentionalStop) {
+            stopSession();
+            setTimeout(() => window.startSession(), 1000);
+        }
+    };
+  } catch(e) {
+    console.error("Error starting session:", e);
+    alert("Could not start audio stream. " + e.message);
+  }
+};
+
+// Start logic wire up
+window.onload = () => {
+  setLanguage('en');
+  updateZopaVisuals();
+  
+  const btn = document.getElementById('btn-session');
+  if(btn) btn.onclick = window.startSession;
+};

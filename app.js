@@ -287,20 +287,14 @@ const toolDeclarations = [
 
 
 // ─── System Instruction ────────────────────────────────────────────────
-const SYSTEM_INSTRUCTION = `
-You are a world-class real-time negotiation coach AI.
-You are listening to a live audio stream of a negotiation between the user ("You") and a "Client".
-Your ONLY job is to analyze the conversation and call the provided tools to update the user's dashboard.
+const SYSTEM_INSTRUCTION = `You are an expert negotiation AI observing a live sales call. 
+You MUST act instantly on every utterance by using one of your tools.
+1. ANY time a number, budget, price, or cost is mentioned (e.g. 100, 200k, dollars, euros), YOU MUST call 'update_zopa' with the extracted numbers.
+2. ANY time a competitor is mentioned (e.g. SAP, Oracle, Salesforce), YOU MUST call 'show_battlecard'.
+3. Every time someone finishes a thought, YOU MUST call 'update_analytics' to assess the phase.
+4. If you have advice, call 'suggest_directive'.
 
-Rules:
-- ANY time a new phase of negotiation begins, YOU MUST call update_analytics to set the current phase.
-- IF you detect actionable tactical advice to give the user, YOU MUST call suggest_directive immediately.
-- ANY time price anchors, terms, or BATNA-related info is mentioned by either party, YOU MUST call update_zopa.
-- ANY time a significant moment occurs (competitor mentioned, commitment made, phase shift, objections), YOU MUST call add_trigger to log the event.
-- IF a competitor, specific product, or major objection needs deeper context, YOU MUST call show_battlecard.
-- Keep all tool parameters concise and direct. This is a real-time HUD, not a report.
-- DO NOT respond with text or voice greetings, ONLY USE TOOLS. 
-`.trim();
+Do NOT just listen silently. You are required to call a tool every time you process speech!`;
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -437,10 +431,10 @@ function startAudioCapture(stream) {
         const base64Audio = arrayBufferToBase64(pcm16.buffer);
         ws.send(JSON.stringify({
             realtimeInput: {
-                mediaChunks: [{
+                audio: {
                     mimeType: 'audio/pcm;rate=16000',
                     data: base64Audio
-                }]
+                }
             }
         }));
     };
@@ -612,10 +606,20 @@ async function startSession() {
             ws.send(JSON.stringify(setupPayload));
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
+            let textData = event.data;
+            if (textData instanceof Blob) {
+                try {
+                    textData = await textData.text();
+                } catch (e) {
+                    logToConsole('System', { error: 'Failed to read Blob from WebSocket' }, 'err');
+                    return;
+                }
+            }
+
             let data;
-            try { data = JSON.parse(event.data); }
-            catch { logToConsole('Parse Error', event.data, 'err'); return; }
+            try { data = JSON.parse(textData); }
+            catch (err) { logToConsole('Parse Error', textData, 'err'); return; }
 
             logToConsole('Gemini', data, 'in');
 

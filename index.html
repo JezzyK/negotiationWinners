@@ -446,6 +446,88 @@
             color: var(--accent-cyan);
         }
 
+        /* ── ZOPA Diagram ── */
+        .zopa-chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 580px;
+            margin: 30px auto 10px;
+            height: 120px;
+            display: none; /* hidden until data arrives */
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.6s var(--ease-out-expo);
+        }
+        .zopa-chart-container.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .zopa-bar {
+            position: absolute;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            transition: all 0.5s var(--ease-out-expo);
+        }
+        .seller-bar {
+            top: 15px;
+            right: 0;
+            width: 65%;
+            background: linear-gradient(90deg, #8bc34a, #558b2f);
+            border: 1px solid rgba(139, 195, 74, 0.4);
+        }
+        .buyer-bar {
+            bottom: 15px;
+            left: 0;
+            width: 65%;
+            background: linear-gradient(90deg, #00b4db, #0083b0);
+            border: 1px solid rgba(0, 180, 219, 0.4);
+        }
+        .zopa-overlap {
+            position: absolute;
+            top: 37px;
+            left: 35%;
+            width: 30%;
+            height: 48px;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(56, 239, 125, 0.6);
+            z-index: 10;
+            animation: zopaPulse 3s ease-in-out infinite alternate;
+        }
+        @keyframes zopaPulse {
+            0% { box-shadow: 0 0 15px rgba(56, 239, 125, 0.4); filter: brightness(1); }
+            100% { box-shadow: 0 0 35px rgba(56, 239, 125, 0.8); filter: brightness(1.2); }
+        }
+        .zopa-marker {
+            position: absolute;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            white-space: nowrap;
+            padding: 4px 8px;
+            background: var(--bg-deep);
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+        }
+        .marker-client { top: -15px; right: 65%; transform: translateX(50%); color: #8bc34a; }
+        .marker-target { bottom: -15px; left: 65%; transform: translateX(-50%); color: #00b4db; }
+
         /* ── Hint Box ── */
         .hint-container {
             width: 100%;
@@ -820,19 +902,22 @@
                 <div id="strategy-title" class="batna-title">BATNA</div>
                 <div id="phase-badge" class="phase-badge">Awaiting Audio</div>
 
-                <div id="batna-details" class="batna-details">
-                    <div class="detail-card">
-                        <div class="detail-label" data-i18n="battlecard.clientAnchor">Client Anchor</div>
-                        <div id="val-client-anchor" class="detail-value">—</div>
+                <div id="batna-details" class="batna-details" style="display: none;"></div>
+                
+                <div id="zopa-chart" class="zopa-chart-container">
+                    <div class="zopa-marker marker-client" id="marker-client-val">Seller Anchor</div>
+                    <div class="zopa-bar seller-bar">
+                        <span data-i18n="ui.sellerRange">Client's Settlement Range</span>
                     </div>
-                    <div class="detail-card">
-                        <div class="detail-label" data-i18n="battlecard.yourTarget">Your Target</div>
-                        <div id="val-your-target" class="detail-value">—</div>
+                    
+                    <div class="zopa-overlap">ZOPA</div>
+                    
+                    <div class="zopa-bar buyer-bar">
+                        <span data-i18n="ui.buyerRange">Your Settlement Range</span>
                     </div>
-                    <div class="detail-card">
-                        <div class="detail-label" data-i18n="battlecard.zopa">ZOPA</div>
-                        <div id="val-zopa" class="detail-value">—</div>
-                    </div>
+                    <div class="zopa-marker marker-target" id="marker-your-val">Buyer Anchor</div>
+                    
+                    <div style="position: absolute; top: 115px; width: 100%; text-align: center; color: var(--accent-cyan); font-weight: bold; font-family: var(--font-mono); font-size: 14px; text-shadow: 0 0 10px rgba(0,212,255,0.4);" id="val-zopa-range"></div>
                 </div>
             </div>
 

@@ -34,7 +34,7 @@ test.describe('Negotiate-Copilot MVP UI Tests', () => {
 
         // Dashboard
         await expect(page.locator('#strategy-title')).toHaveText('BATNA');
-        await expect(page.locator('#phase-badge')).toContainText('Awaiting Audio');
+        await expect(page.locator('#phase-badge')).toContainText(/AWAITING AUDIO/i);
 
         // Panels closed
         await expect(page.locator('#pros-cons-panel')).not.toHaveClass(/open/);
@@ -90,7 +90,7 @@ test.describe('Negotiate-Copilot MVP UI Tests', () => {
         await expect(page.locator('#status-dot')).toHaveClass(/live/);
 
         // Phase badge should show LISTENING
-        await expect(page.locator('#phase-badge')).toContainText('LISTENING');
+        await expect(page.locator('#phase-badge')).toContainText(/LISTENING/i);
 
         // Timer should be ticking (not 00:00 after a brief wait)
         await page.waitForTimeout(2000);

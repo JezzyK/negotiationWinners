@@ -1,0 +1,66 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: 🤝
+        - generic [ref=e6]: NEGOTIATE COPILOT
+      - combobox [ref=e7] [cursor=pointer]:
+        - option "🌐 EN" [selected]
+        - option "🇵🇱 PL"
+        - option "🇺🇦 UA"
+      - combobox [ref=e8] [cursor=pointer]:
+        - option "🔊 System Audio" [selected]
+        - option "🎙️ Microphone"
+    - generic [ref=e9]:
+      - textbox "🔑 Gemini API Key" [ref=e10]:
+        - /placeholder: 🔑  Gemini API Key
+      - button "START SESSION" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+        - text: START SESSION
+    - generic [ref=e14]:
+      - button "DEV" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+        - text: DEV
+      - generic [ref=e20]: Offline
+      - generic [ref=e21]: 00:00
+  - main [ref=e22]:
+    - complementary [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]: ⚡ Context Insights
+        - button "✕" [ref=e26] [cursor=pointer]
+      - generic [ref=e28]: Awaiting context triggers...
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e31]: BATNA
+        - generic [ref=e32]: AWAITING AUDIO
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - generic [ref=e35]: Client Anchor
+            - generic [ref=e36]: —
+          - generic [ref=e37]:
+            - generic [ref=e38]: Your Target
+            - generic [ref=e39]: —
+          - generic [ref=e40]:
+            - generic [ref=e41]: ZOPA
+            - generic [ref=e42]: —
+      - generic [ref=e43]:
+        - generic [ref=e44]: 💡 What to Say
+        - generic [ref=e45]: Waiting for negotiation context…
+      - generic [ref=e49]:
+        - generic [ref=e50]: CLIENT —%
+        - generic [ref=e51]: YOU —%
+      - generic [ref=e53]: 📌 Key Events
+    - complementary [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]: 🖥️ Developer Console
+        - button "✕" [ref=e57] [cursor=pointer]
+      - generic [ref=e59]: Ready. Connect to start logging Gemini messages.
+      - generic [ref=e60]:
+        - button "Clear" [ref=e61] [cursor=pointer]
+        - generic [ref=e62] [cursor=pointer]:
+          - checkbox "Auto-scroll" [checked] [ref=e63]
+          - text: Auto-scroll
+```

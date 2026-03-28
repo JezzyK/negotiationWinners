@@ -1,0 +1,110 @@
+
+Running 4 tests using 4 workers
+
+[1A[2K[1/4] [chromium] › tests\app.spec.js:44:5 › Negotiate-Copilot MVP UI Tests › Dev Console Opens, Closes, and Shows Formatted Logs
+[1A[2K[2/4] [chromium] › tests\app.spec.js:131:5 › Negotiate-Copilot MVP UI Tests › Session Does NOT Resume — Fresh Connection Each Time
+[1A[2K[3/4] [chromium] › tests\app.spec.js:66:5 › Negotiate-Copilot MVP UI Tests › Session Connects to Gemini and Shows LIVE Status
+[1A[2K[4/4] [chromium] › tests\app.spec.js:25:5 › Negotiate-Copilot MVP UI Tests › Initial UI State
+[1A[2K  1) [chromium] › tests\app.spec.js:25:5 › Negotiate-Copilot MVP UI Tests › Initial UI State ───────
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('#phase-badge')
+    Expected substring: [32m"A[7mwaiting Audio[27m"[39m
+    Received string:    [31m"A[7mWAITING AUDIO[27m"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('#phase-badge')[22m
+    [2m    8 × locator resolved to <div id="phase-badge" class="phase-badge">AWAITING AUDIO</div>[22m
+    [2m      - unexpected value "AWAITING AUDIO"[22m
+
+
+      35 |         // Dashboard
+      36 |         await expect(page.locator('#strategy-title')).toHaveText('BATNA');
+    > 37 |         await expect(page.locator('#phase-badge')).toContainText('Awaiting Audio');
+         |                                                    ^
+      38 |
+      39 |         // Panels closed
+      40 |         await expect(page.locator('#pros-cons-panel')).not.toHaveClass(/open/);
+        at C:\Users\admin\Repos\negitiationWinners\tests\app.spec.js:37:52
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\app-Negotiate-Copilot-MVP-UI-Tests-Initial-UI-State-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\app-Negotiate-Copilot-MVP-UI-Tests-Initial-UI-State-chromium\error-context.md
+
+
+[1A[2K  2) [chromium] › tests\app.spec.js:66:5 › Negotiate-Copilot MVP UI Tests › Session Connects to Gemini and Shows LIVE Status 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('#status-text')
+    Expected: [32m"LIVE"[39m
+    Received: [31m"Offline"[39m
+    Timeout:  15000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 15000ms[22m
+    [2m  - waiting for locator('#status-text')[22m
+    [2m    18 × locator resolved to <span id="status-text" data-i18n="ui.offline">Offline</span>[22m
+    [2m       - unexpected value "Offline"[22m
+
+
+      82 |
+      83 |         // Wait for LIVE status (WebSocket setup complete)
+    > 84 |         await expect(page.locator('#status-text')).toHaveText('LIVE', { timeout: 15000 });
+         |                                                    ^
+      85 |
+      86 |         // Session button should change to STOP
+      87 |         await expect(page.locator('#session-btn')).toContainText('STOP SESSION');
+        at C:\Users\admin\Repos\negitiationWinners\tests\app.spec.js:84:52
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\app-Negotiate-Copilot-MVP--5e1f6-emini-and-Shows-LIVE-Status-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\app-Negotiate-Copilot-MVP--5e1f6-emini-and-Shows-LIVE-Status-chromium\error-context.md
+
+
+[1A[2K  3) [chromium] › tests\app.spec.js:131:5 › Negotiate-Copilot MVP UI Tests › Session Does NOT Resume — Fresh Connection Each Time 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('#status-text')
+    Expected: [32m"LIVE"[39m
+    Received: [31m"Offline"[39m
+    Timeout:  15000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 15000ms[22m
+    [2m  - waiting for locator('#status-text')[22m
+    [2m    18 × locator resolved to <span id="status-text" data-i18n="ui.offline">Offline</span>[22m
+    [2m       - unexpected value "Offline"[22m
+
+
+      139 |         await page.fill('#api-key-input', API_KEY);
+      140 |         await page.click('#session-btn');
+    > 141 |         await expect(page.locator('#status-text')).toHaveText('LIVE', { timeout: 15000 });
+          |                                                    ^
+      142 |
+      143 |         // Stop
+      144 |         await page.click('#session-btn');
+        at C:\Users\admin\Repos\negitiationWinners\tests\app.spec.js:141:52
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\app-Negotiate-Copilot-MVP--8f53c--Fresh-Connection-Each-Time-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\app-Negotiate-Copilot-MVP--8f53c--Fresh-Connection-Each-Time-chromium\error-context.md
+
+
+[1A[2K  3 failed
+    [chromium] › tests\app.spec.js:25:5 › Negotiate-Copilot MVP UI Tests › Initial UI State ────────
+    [chromium] › tests\app.spec.js:66:5 › Negotiate-Copilot MVP UI Tests › Session Connects to Gemini and Shows LIVE Status 
+    [chromium] › tests\app.spec.js:131:5 › Negotiate-Copilot MVP UI Tests › Session Does NOT Resume — Fresh Connection Each Time 
+  1 passed (22.7s)
+
+[36m  Serving HTML report at http://localhost:52017. Press Ctrl+C to quit.[39m

@@ -178,11 +178,24 @@ function updateHybridAgenda(forceRebuild = false) {
   });
 }
 
-setInterval(() => {
-  secs++;
+let timerInterval = null;
+
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    secs++;
+    document.getElementById('timer').textContent = formatTime(secs);
+    updateHybridAgenda();
+  }, 1000);
+}
+
+function resetTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  secs = 0;
   document.getElementById('timer').textContent = formatTime(secs);
   updateHybridAgenda();
-}, 1000);
+}
+
 updateHybridAgenda();
 
 // ── NEGOTIATION MODE & ZOPA DYNAMICS ──
@@ -663,6 +676,7 @@ function stopSession() {
       }
   }
 
+  resetTimer();
   document.getElementById('status-text').textContent = 'Idle';
   document.getElementById('status-dot').style.background = 'var(--muted)';
   document.getElementById('status-dot').style.animation = 'none';
@@ -753,6 +767,7 @@ Do NOT just listen silently. You are required to call a tool every time you proc
         
         if (msg.setupComplete) {
             startAudioCapture(stream);
+            startTimer();
             document.getElementById('status-text').textContent = 'Listening (Setup OK)';
             document.getElementById('status-dot').style.background = 'var(--green)';
             document.getElementById('status-dot').style.animation = 'pulse 2s infinite';
